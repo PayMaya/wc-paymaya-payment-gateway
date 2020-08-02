@@ -69,13 +69,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $this->enabled = $this->get_option('enabled');
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
-        $this->testmode = 'yes' === $this->get_option('testmode');
-        $this->secret_key = $this->testmode ?
-            $this->get_option('test_secret_key')
-            : $this->get_option('secret_key');
-        $this->public_key = $this->testmode ?
-            $this->get_option('test_public_key')
-            : $this->get_option('public_key');
+        $this->secret_key = $this->get_option('secret_key');
+        $this->public_key = $this->get_option('public_key');
 
         add_action(
             'woocommerce_update_options_payment_gateways_' . $this->id,
@@ -92,12 +87,6 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
      */
     public function initFormFields()
     {
-        $webhookUrl = add_query_arg(
-            'wc-api',
-            'cynder_paymaya',
-            trailingslashit(get_home_url())
-        );
-
         $this->form_fields = array(
             'enabled' => array(
                 'title'       => 'Enable/Disable',
@@ -135,5 +124,97 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'type'        => 'text'
             ),
         );
+    }
+
+    public function process_payment($orderId) {
+        $order = wc_get_order($orderId);
+
+        function getItemPayload($items, $item) {
+            $product = $item->get_product();
+
+            array_push(
+                $items,
+                array(
+                    "name" => $item->get_name(),
+                    "quantity" => $item->get_quantity(),
+                    "code" => strval($item->get_product_id()),
+                    "amount" => array(
+                        "value" => $product->get_price()
+                    ),
+                    "totalAmount" => array(
+                        "value" => $item->get_subtotal()
+                    )
+                )
+            );
+
+            return $items;
+        }
+
+        $payload = json_encode(
+            array(
+                "totalAmount" => array(
+                    "value" => intval($order->get_total() * 100, 32),
+                    "currency" => $order->get_currency(),
+                ),
+                "buyer" => array(
+                    "firstName" => $order->get_billing_first_name(),
+                    "lastName" => $order->get_billing_last_name(),
+                    "contact" => array(
+                        "phone" => $order->get_billing_phone(),
+                        "email" => $order->get_billing_email()
+                    ),
+                    "billing_address" => array(
+                        "line1" => $order->get_billing_address_1(),
+                        "line2" => $order->get_billing_address_2(),
+                        "city" => $order->get_billing_city(),
+                        "state" => $order->get_billing_state(),
+                        "zipCode" => $order->get_billing_postcode(),
+                        "countryCode" => $order->get_billing_country()
+                    )
+                ),
+                "items" => array_reduce($order->get_items(), 'getItemPayload', []),
+                "redirectUrl" => array(
+                    "success" => $order->get_checkout_order_received_url(),
+                    "failure" => $order->get_checkout_payment_url(),
+                    "cancel" => $order->get_checkout_payment_url()
+                ),
+                "requestReferenceNumber" => strval($orderId)
+            )
+        );
+
+        wc_get_logger()->log("info", json_encode($payload));
+
+        $requestArgs = array(
+            'body' => $payload,
+            'method' => "POST",
+            'headers' => array(
+                'Authorization' => 'Basic ' . base64_encode($this->public_key . ':'),
+                'Content-Type' => 'application/json'
+            ),
+        );
+
+        wc_get_logger()->log("info", CYNDER_PAYMAYA_BASE_URL);
+
+        $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/checkouts', $requestArgs);
+
+        wc_get_logger()->log("info", json_encode($response));
+
+        if (!is_wp_error($response)) {
+            $body = json_decode($response['body'], true);
+
+            if ($body && array_key_exists("error", $body)) {
+                wc_add_notice($body["error"], "error");
+                return null;
+            }
+
+            wc_get_logger()->log("info", "Body " . $body['redirectUrl']);
+
+            return array(
+                "result" => "success",
+                "redirect" => $body['redirectUrl']
+            );
+        } else {
+            wc_get_logger()->log("error", $response);
+        }
     }
 }
