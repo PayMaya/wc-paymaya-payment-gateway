@@ -76,6 +76,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             'woocommerce_update_options_payment_gateways_' . $this->id,
             array($this, 'process_admin_options')
         );
+
+        $fileDir = dirname(__FILE__);
+        include_once $fileDir.'/paymaya-client.php';
+
+        $this->client = new Cynder_PaymayaClient($this->public_key, $this->secret_key);
     }
 
     /**
@@ -182,39 +187,16 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             )
         );
 
-        wc_get_logger()->log("info", json_encode($payload));
+        $response = $this->client->createCheckout($payload);
 
-        $requestArgs = array(
-            'body' => $payload,
-            'method' => "POST",
-            'headers' => array(
-                'Authorization' => 'Basic ' . base64_encode($this->public_key . ':'),
-                'Content-Type' => 'application/json'
-            ),
-        );
-
-        wc_get_logger()->log("info", CYNDER_PAYMAYA_BASE_URL);
-
-        $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/checkouts', $requestArgs);
-
-        wc_get_logger()->log("info", json_encode($response));
-
-        if (!is_wp_error($response)) {
-            $body = json_decode($response['body'], true);
-
-            if ($body && array_key_exists("error", $body)) {
-                wc_add_notice($body["error"], "error");
-                return null;
-            }
-
-            wc_get_logger()->log("info", "Body " . $body['redirectUrl']);
-
-            return array(
-                "result" => "success",
-                "redirect" => $body['redirectUrl']
-            );
-        } else {
-            wc_get_logger()->log("error", $response);
+        if (array_key_exists("error", $response)) {
+            wc_add_notice($response["error"], "error");
+            return null;
         }
+
+        return array(
+            "result" => "success",
+            "redirect" => $response["redirectUrl"]
+        );
     }
 }
