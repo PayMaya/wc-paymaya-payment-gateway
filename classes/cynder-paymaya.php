@@ -77,6 +77,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             array($this, 'process_admin_options')
         );
 
+        add_action(
+            'woocommerce_api_cynder_' . $this->id,
+            array($this, 'handle_webhook_request')
+        );
+
         $fileDir = dirname(__FILE__);
         include_once $fileDir.'/paymaya-client.php';
 
@@ -129,6 +134,43 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'type'        => 'text'
             ),
         );
+    }
+
+    public function process_admin_options() {
+        global $woocommerce;
+
+        $is_options_saved = parent::process_admin_options();
+
+        if (isset($this->enabled) && $this->enabled === 'yes' && isset($this->public_key) && isset($this->secret_key)) {
+            $webhooks = $this->client->retrieveWebhooks();
+
+            if (array_key_exists("error", $webhooks)) {
+                $this->add_error($webhooks["error"]);
+            }
+
+            foreach($webhooks as $webhook) {
+                $deletedWebhook = $this->client->deleteWebhook($webhook["id"]);
+
+                if (array_key_exists("error", $deletedWebhook)) {
+                    $this->add_error($deletedWebhook["error"]);
+                }
+            }
+
+            // $webhookCallbackUrl = get_site_url();
+            $webhookCallbackUrl = 'https://ec50a017df01.ngrok.io/wordpress/?wc-api=cynder_paymaya';
+
+            $createdWebhook = $this->client->createWebhook('CHECKOUT_SUCCESS', $webhookCallbackUrl);
+            $createdWebhook = $this->client->createWebhook('CHECKOUT_FAILURE', $webhookCallbackUrl);
+            $createdWebhook = $this->client->createWebhook('CHECKOUT_DROPOUT', $webhookCallbackUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $this->display_errors();
+        }
+
+        return $is_options_saved;
     }
 
     public function process_payment($orderId) {
@@ -198,5 +240,43 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             "result" => "success",
             "redirect" => $response["redirectUrl"]
         );
+    }
+
+    public function handle_webhook_request() {
+        $isPostRequest = $_SERVER['REQUEST_METHOD'] === 'POST';
+        $hasWcApiQuery = isset($_GET['wc-api']);
+        $hasCorrectQuery = $_GET['wc-api'] === 'cynder_paymaya';
+
+        if (!$isPostRequest || !$hasWcApiQuery || !$hasCorrectQuery) {
+            status_header(400);
+            die();
+        }
+
+        $requestBody = file_get_contents('php://input');
+        $checkout = json_decode($requestBody, true);
+
+        $referenceNumber = $checkout['requestReferenceNumber'];
+
+        $order = wc_get_order($referenceNumber);
+
+        if (empty($order)) {
+            wc_get_logger()->log('info', 'No transaction found with reference number '. $referenceNumber);
+
+            status_header(204);
+            die();
+        }
+
+        $checkoutStatus = $checkout['status'];
+        $paymentStatus = $checkout['paymentStatus'];
+
+        if ($checkoutStatus === 'COMPLETED' && $paymentStatus === 'PAYMENT_SUCCESS') {
+            $transactionRefNumber = $checkout['transactionReferenceNumber'];
+
+            $order->payment_complete($transactionRefNumber);
+        } else {
+            wc_get_logger()->log('error', 'Failed to complete order because checkout is ' . $checkoutStatus . ' and  payment is ' . $paymentStatus);
+        }
+
+        wc_get_logger()->log('info', 'Webhook processing for checkout ID ' . $checkout['id']);
     }
 }

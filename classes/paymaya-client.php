@@ -6,7 +6,7 @@ class Cynder_PaymayaClient {
         $this->secret_key = $secretKey;
     }
 
-    public function getHeaders($usePublicKey = false, $additionalHeaders = []) {
+    private function getHeaders($usePublicKey = false, $additionalHeaders = []) {
         $key = $usePublicKey ? $this->public_key : $this->secret_key;
 
         $baseHeaders =  array(
@@ -15,6 +15,20 @@ class Cynder_PaymayaClient {
         );
 
         return array_merge($baseHeaders, $additionalHeaders);
+    }
+
+    private function handleResponse($response) {
+        wc_get_logger()->log('info', json_encode($response));
+
+        if (is_wp_error($response)) {
+            return array(
+                'error' => $response->get_error_message()
+            );
+        }
+
+        $body = json_decode($response['body'], true);
+
+        return $body;
     }
 
     public function createCheckout($payload) {
@@ -26,14 +40,46 @@ class Cynder_PaymayaClient {
 
         $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/checkouts', $requestArgs);
 
-        if (!is_wp_error($response)) {
-            $body = json_decode($response['body'], true);
+        return $this->handleResponse($response);
+    }
 
-            return $body;
-        } else {
-            return array(
-                'error' => $response->get_error_message()
-            );
-        }
+    public function retrieveWebhooks() {
+        $requestArgs = array(
+            'headers' => $this->getHeaders()
+        );
+
+        wc_get_logger()->log('info', CYNDER_PAYMAYA_BASE_URL);
+
+        $response = wp_remote_get(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/webhooks', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function deleteWebhook($id) {
+        $requestArgs = array(
+            'method' => 'DELETE',
+            'headers' => $this->getHeaders()
+        );
+
+        $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/webhooks/' . $id, $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function createWebhook($type, $callbackUrl) {
+        $requestArgs = array(
+            'body' => json_encode(
+                array(
+                    'name' => $type,
+                    'callbackUrl' => $callbackUrl
+                )
+            ),
+            'method' => 'POST',
+            'headers' => $this->getHeaders()
+        );
+
+        $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/webhooks', $requestArgs);
+
+        return $this->handleResponse($response);
     }
 }
