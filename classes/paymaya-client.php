@@ -19,7 +19,7 @@ class Cynder_PaymayaClient {
     }
 
     private function handleResponse($response) {
-        wc_get_logger()->log('info', json_encode($response));
+        wc_get_logger()->log('info', 'Response ' . json_encode($response));
 
         if (is_wp_error($response)) {
             return array(
@@ -84,6 +84,28 @@ class Cynder_PaymayaClient {
         );
 
         $response = wp_remote_post($this->getBaseUrl() . '/checkout/v1/webhooks', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function getPaymentViaRrn($orderId) {
+        $requestArgs = array(
+            'headers' => $this->getHeaders()
+        );
+
+        $response = wp_remote_get($this->getBaseUrl() . '/payments/v1/payment-rrns/' . $orderId, $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function refundPayment($paymentId, $payload) {
+        $requestArgs = array(
+            'body' => $payload,
+            'method' => 'POST',
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/refunds');
 
         return $this->handleResponse($response);
     }
