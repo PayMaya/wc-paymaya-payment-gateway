@@ -220,7 +220,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $payload = json_encode(
             array(
                 "totalAmount" => array(
-                    "value" => intval($order->get_total() * 100, 32),
+                    "value" => intval($order->get_total()),
                     "currency" => $order->get_currency(),
                 ),
                 "buyer" => array(
@@ -248,6 +248,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 "requestReferenceNumber" => strval($orderId)
             )
         );
+
+        wc_get_logger()->log('info', 'Payload' . json_encode($payload));
 
         $response = $this->client->createCheckout($payload);
 
