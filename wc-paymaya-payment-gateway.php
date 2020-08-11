@@ -54,7 +54,8 @@ function Paymaya_Init_Gateway_class()
 
     define('CYNDER_PAYMAYA_MAIN_FILE', __FILE__);
     define('CYNDER_PAYMAYA_VERSION', '1.0.0');
-    define('CYNDER_PAYMAYA_BASE_URL',  'https://pg-sandbox.paymaya.com');
+    define('CYNDER_PAYMAYA_BASE_SANDBOX_URL',  'https://pg-sandbox.paymaya.com');
+    define('CYNDER_PAYMAYA_BASE_PRODUCTION_URL',  'https://pg.paymaya.com');
     define(
         'CYNDER_PAYMAYA_PLUGIN_URL',
         untrailingslashit(

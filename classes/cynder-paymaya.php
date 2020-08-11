@@ -66,11 +66,15 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $this->initFormFields();
 
         $this->init_settings();
+
         $this->enabled = $this->get_option('enabled');
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
+        $this->sandbox = $this->get_option('sandbox');
         $this->secret_key = $this->get_option('secret_key');
         $this->public_key = $this->get_option('public_key');
+        $this->webhook_success = $this->get_option('webhook_success');
+        $this->webhook_failure = $this->get_option('webhook_failure');
 
         add_action(
             'woocommerce_update_options_payment_gateways_' . $this->id,
@@ -85,7 +89,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $fileDir = dirname(__FILE__);
         include_once $fileDir.'/paymaya-client.php';
 
-        $this->client = new Cynder_PaymayaClient($this->public_key, $this->secret_key);
+        $this->client = new Cynder_PaymayaClient($this->sandbox === 'yes', $this->public_key, $this->secret_key);
     }
 
     /**
@@ -120,19 +124,39 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                                  'the user sees during checkout.',
                 'default'     => 'Secure online payments via Paymaya',
             ),
-            'live_env' => array(
+            'environment_title' => array(
                 'title' => 'API Keys',
                 'type' => 'title',
-                'description' => 'Some useful description of API keys here'
+                'description' => 'API Keys are used to authenticate yourself to PayMaya checkout.<br/><strong>This plugin will not work without these keys</strong>.<br/>To obtain a set of keys, contact PayMaya directly.'
+            ),
+            'sandbox' => array(
+                'title' => 'Sandbox Mode',
+                'type' => 'checkbox',
+                'description' => 'Enabled sandbox mode to test payment transactions with PayMaya.<br/>A set of test API keys and card numbers are available <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Sandbox-Test-Credentials">here</a>.'
             ),
             'public_key' => array(
                 'title'       => 'Public Key',
-                'type'        => 'text'
+                'type'        => 'text',
             ),
             'secret_key' => array(
                 'title'       => 'Secret Key',
                 'type'        => 'text'
             ),
+            'webhook_title' => array(
+                'title' => 'Webhooks',
+                'type' => 'title',
+                'description' => 'The following fields are used by PayMongo to properly process order statuses after payments.<br/><strong>DON\'T CHANGE THIS UNLESS YOU KNOW WHAT YOU\'RE DOING</strong>.<br/>For more information, refer <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Webhooks">here</a>.'
+            ),
+            'webhook_success' => array(
+                'title' => 'Webhook Success URL',
+                'type' => 'text',
+                'default' => get_home_url() . '?wc-api=cynder_paymaya'
+            ),
+            'webhook_failure' => array(
+                'title' => 'Webhook Failure URL',
+                'type' => 'text',
+                'default' => get_home_url() . '?wc-api=cynder_paymaya'
+            )
         );
     }
 
@@ -156,12 +180,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 }
             }
 
-            // $webhookCallbackUrl = get_site_url();
-            $webhookCallbackUrl = 'https://ec50a017df01.ngrok.io/wordpress/?wc-api=cynder_paymaya';
-
-            $createdWebhook = $this->client->createWebhook('CHECKOUT_SUCCESS', $webhookCallbackUrl);
-            $createdWebhook = $this->client->createWebhook('CHECKOUT_FAILURE', $webhookCallbackUrl);
-            $createdWebhook = $this->client->createWebhook('CHECKOUT_DROPOUT', $webhookCallbackUrl);
+            $createdWebhook = $this->client->createWebhook('CHECKOUT_SUCCESS', $this->webhook_success);
+            $createdWebhook = $this->client->createWebhook('CHECKOUT_FAILURE', $this->webhook_failure);
 
             if (array_key_exists("error", $createdWebhook)) {
                 $this->add_error($createdWebhook["error"]);
