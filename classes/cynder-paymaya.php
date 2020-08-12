@@ -60,7 +60,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $this->method_description = 'Secure online payments via Paymaya';
 
         $this->supports = array(
-            'products'
+            'products',
+            'refunds'
         );
 
         $this->initFormFields();
@@ -262,6 +263,54 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             "result" => "success",
             "redirect" => $response["redirectUrl"]
         );
+    }
+
+    public function process_refund($orderId, $amount = NULL, $reason = '') {
+        $order = wc_get_order($orderId);
+        $payments = $this->client->getPaymentViaRrn($orderId);
+
+        wc_get_logger()->log('info', 'Order ID ' . $orderId);
+
+        $transactionId = $order->get_transaction_id();
+        $receiptNumber = end(explode('-', $transactionId));
+
+        wc_get_logger()->log('info', 'Receipt Number ' . $receiptNumber);
+
+        $successfulPayment = array_filter($payments, function ($payment) use ($orderId, $receiptNumber) {
+            $success = $payment['status'] == 'PAYMENT_SUCCESS';
+            $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+            $matchedReceiptNum = $payment['receiptNumber'] == $receiptNumber;
+            return $success && $matchedRefNum && $matchedReceiptNum;
+        })[0];
+
+        wc_get_logger()->log('info', 'PAYMENT ' . json_encode($successfulPayment));
+
+        if (!$successfulPayment) {
+            return new WP_Error(404, 'Can\'t find payment record to refund in Paymaya');
+        }
+
+        if (!$successfulPayment['canRefund']) {
+            return new WP_Error(400, 'Payment can no longer be refunded');
+        }
+
+        $payload = json_encode(
+            array(
+                'totalAmount' => array(
+                    'amount' => $amount,
+                    'currency' => $successfulPayment['currency']
+                ),
+                'reason' => empty($reason) ? 'Merchant manually refunded' : $reason
+            )
+        );
+
+        $response = $this->client->refundPayment($successfulPayment['id'], $payload);
+
+        if (array_key_exists("error", $response)) {
+            wc_get_logger()->log('error', $response['error']);
+            return false;
+        }
+
+        return true;
     }
 
     public function handle_webhook_request() {
