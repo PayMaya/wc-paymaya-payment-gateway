@@ -105,7 +105,7 @@ class Cynder_PaymayaClient {
             'headers' => $this->getHeaders(),
         );
 
-        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/refunds');
+        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/refunds', $requestArgs);
 
         return $this->handleResponse($response);
     }
