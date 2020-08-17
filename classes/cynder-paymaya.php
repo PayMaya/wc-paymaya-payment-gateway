@@ -386,3 +386,20 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         }
     }
 }
+
+function paymentScripts($hook) {
+    if ($hook !== 'post.php') return;
+    
+    wp_register_script(
+        'woocommerce_cynder_paymaya',
+        plugins_url('assets/js/paymaya.js', CYNDER_PAYMAYA_MAIN_FILE),
+        array('jquery')
+    );
+
+    wp_enqueue_script('woocommerce_cynder_paymaya');
+}
+
+add_action(
+    'admin_enqueue_scripts',
+    'paymentScripts'
+);
