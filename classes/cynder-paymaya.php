@@ -87,6 +87,13 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             array($this, 'handle_webhook_request')
         );
 
+        add_action(
+            'woocommerce_order_item_add_action_buttons',
+            array($this, 'wc_order_item_add_action_buttons_callback'),
+            10,
+            1
+        );
+
         $fileDir = dirname(__FILE__);
         include_once $fileDir.'/paymaya-client.php';
 
@@ -349,5 +356,33 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         }
 
         wc_get_logger()->log('info', 'Webhook processing for checkout ID ' . $checkout['id']);
+    }
+
+    public function wc_order_item_add_action_buttons_callback( $order ) {
+        $trxId = $order->get_transaction_id();
+
+        if (!$trxId) return;
+
+        $orderId = $order->get_id();
+        $payments = $this->client->getPaymentViaRrn($orderId);
+
+        $trxParts = explode('-', $trxId);
+        $receiptNumber = end($trxParts);
+
+        $successfulPayments = array_filter($payments, function ($payment) use ($orderId, $receiptNumber) {
+            if (empty($payment['receiptNumber'])) return false;
+            $success = $payment['status'] == 'PAYMENT_SUCCESS';
+            $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+            $matchedReceiptNum = $payment['receiptNumber'] == $receiptNumber;
+            return $success && $matchedRefNum && $matchedReceiptNum;
+        });
+
+        if (count($successfulPayments) === 0) return;
+
+        $successfulPayment = $successfulPayments[0];
+
+        if ($successfulPayment['canVoid']) {
+            echo '<button type="button" class="button void-items" id="cynder-paymaya-void-items">Void</button>';
+        }
     }
 }
