@@ -19,8 +19,6 @@ class Cynder_PaymayaClient {
     }
 
     private function handleResponse($response) {
-        wc_get_logger()->log('info', 'Response ' . json_encode($response));
-
         if (is_wp_error($response)) {
             return array(
                 'error' => $response->get_error_message()
@@ -52,8 +50,6 @@ class Cynder_PaymayaClient {
         $requestArgs = array(
             'headers' => $this->getHeaders()
         );
-
-        wc_get_logger()->log('info', $this->getBaseUrl());
 
         $response = wp_remote_get($this->getBaseUrl() . '/checkout/v1/webhooks', $requestArgs);
 
@@ -106,6 +102,22 @@ class Cynder_PaymayaClient {
         );
 
         $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/refunds', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function voidPayment($paymentId, $reason) {
+        $requestArgs = array(
+            'body' => json_encode(
+                array(
+                    'reason' => $reason
+                )
+            ),
+            'method' => 'POST',
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/voids', $requestArgs);
 
         return $this->handleResponse($response);
     }
