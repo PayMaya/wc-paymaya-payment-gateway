@@ -135,12 +135,12 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             'environment_title' => array(
                 'title' => 'API Keys',
                 'type' => 'title',
-                'description' => 'API Keys are used to authenticate yourself to PayMaya checkout.<br/><strong>This plugin will not work without these keys</strong>.<br/>To obtain a set of keys, contact PayMaya directly.'
+                'description' => 'API Keys are used to authenticate yourself to Paymaya checkout.<br/><strong>This plugin will not work without these keys</strong>.<br/>To obtain a set of keys, contact Paymaya directly.'
             ),
             'sandbox' => array(
                 'title' => 'Sandbox Mode',
                 'type' => 'checkbox',
-                'description' => 'Enabled sandbox mode to test payment transactions with PayMaya.<br/>A set of test API keys and card numbers are available <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Sandbox-Test-Credentials">here</a>.'
+                'description' => 'Enabled sandbox mode to test payment transactions with Paymaya.<br/>A set of test API keys and card numbers are available <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Sandbox-Test-Credentials">here</a>.'
             ),
             'public_key' => array(
                 'title'       => 'Public Key',
@@ -153,7 +153,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             'webhook_title' => array(
                 'title' => 'Webhooks',
                 'type' => 'title',
-                'description' => 'The following fields are used by PayMongo to properly process order statuses after payments.<br/><strong>DON\'T CHANGE THIS UNLESS YOU KNOW WHAT YOU\'RE DOING</strong>.<br/>For more information, refer <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Webhooks">here</a>.'
+                'description' => 'The following fields are used by Paymaya to properly process order statuses after payments.<br/><strong>DON\'T CHANGE THIS UNLESS YOU KNOW WHAT YOU\'RE DOING</strong>.<br/>For more information, refer <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Webhooks">here</a>.'
             ),
             'webhook_success' => array(
                 'title' => 'Webhook Success URL',
