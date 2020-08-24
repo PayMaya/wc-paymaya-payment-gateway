@@ -71,6 +71,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $this->enabled = $this->get_option('enabled');
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
+        $this->manual_capture = $this->get_option('manual_capture');
         $this->sandbox = $this->get_option('sandbox');
         $this->secret_key = $this->get_option('secret_key');
         $this->public_key = $this->get_option('public_key');
@@ -131,6 +132,18 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'description' => 'This controls the description that ' .
                                  'the user sees during checkout.',
                 'default'     => 'Secure online payments via Paymaya',
+            ),
+            'manual_capture' => array(
+                'title' => 'Manual Capture',
+                'type' => 'select',
+                'options' => array(
+                    'none' => 'None',
+                    'normal' => 'Normal',
+                    'final' => 'Final',
+                    'preauthorization' => 'Pre-authorization'
+                ),
+                'description' => 'To enable manual capture, select an authorization type. Setting the value to <strong>None</strong> disables manual capture.<br/><strong><em>Disabled by default.</em></strong>',
+                'default' => 'none',
             ),
             'environment_title' => array(
                 'title' => 'API Keys',
