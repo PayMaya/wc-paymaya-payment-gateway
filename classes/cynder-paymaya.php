@@ -238,41 +238,47 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             return $items;
         }
 
-        $payload = json_encode(
-            array(
-                "totalAmount" => array(
-                    "value" => intval($order->get_total()),
-                    "currency" => $order->get_currency(),
+        $payload = array(
+            "totalAmount" => array(
+                "value" => intval($order->get_total()),
+                "currency" => $order->get_currency(),
+            ),
+            "buyer" => array(
+                "firstName" => $order->get_billing_first_name(),
+                "lastName" => $order->get_billing_last_name(),
+                "contact" => array(
+                    "phone" => $order->get_billing_phone(),
+                    "email" => $order->get_billing_email()
                 ),
-                "buyer" => array(
-                    "firstName" => $order->get_billing_first_name(),
-                    "lastName" => $order->get_billing_last_name(),
-                    "contact" => array(
-                        "phone" => $order->get_billing_phone(),
-                        "email" => $order->get_billing_email()
-                    ),
-                    "billing_address" => array(
-                        "line1" => $order->get_billing_address_1(),
-                        "line2" => $order->get_billing_address_2(),
-                        "city" => $order->get_billing_city(),
-                        "state" => $order->get_billing_state(),
-                        "zipCode" => $order->get_billing_postcode(),
-                        "countryCode" => $order->get_billing_country()
-                    )
-                ),
-                "items" => array_reduce($order->get_items(), 'getItemPayload', []),
-                "redirectUrl" => array(
-                    "success" => $order->get_checkout_order_received_url(),
-                    "failure" => $order->get_checkout_payment_url(),
-                    "cancel" => $order->get_checkout_payment_url()
-                ),
-                "requestReferenceNumber" => strval($orderId)
-            )
+                "billing_address" => array(
+                    "line1" => $order->get_billing_address_1(),
+                    "line2" => $order->get_billing_address_2(),
+                    "city" => $order->get_billing_city(),
+                    "state" => $order->get_billing_state(),
+                    "zipCode" => $order->get_billing_postcode(),
+                    "countryCode" => $order->get_billing_country()
+                )
+            ),
+            "items" => array_reduce($order->get_items(), 'getItemPayload', []),
+            "redirectUrl" => array(
+                "success" => $order->get_checkout_order_received_url(),
+                "failure" => $order->get_checkout_payment_url(),
+                "cancel" => $order->get_checkout_payment_url()
+            ),
+            "requestReferenceNumber" => strval($orderId)
         );
 
-        wc_get_logger()->log('info', 'Payload' . json_encode($payload));
+        wc_get_logger()->log('info', 'Manual capture authorization type ' . $this->manual_capture);
 
-        $response = $this->client->createCheckout($payload);
+        if ($this->manual_capture !== "none") {
+            $payload['authorizationType'] = strtoupper($this->manual_capture);
+        };
+
+        $encodedPayload = json_encode($payload);
+
+        wc_get_logger()->log('info', 'Payload' . $encodedPayload);
+
+        $response = $this->client->createCheckout($encodedPayload);
 
         if (array_key_exists("error", $response)) {
             wc_add_notice($response["error"], "error");
@@ -388,33 +394,43 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     }
 
     function wc_order_item_add_action_buttons_callback($order) {
-        $trxId = $order->get_transaction_id();
-    
-        if (!$trxId) return;
-    
         $orderId = $order->get_id();
         $payments = $this->client->getPaymentViaRrn($orderId);
+
+        wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
     
-        $trxParts = explode('-', $trxId);
-        $receiptNumber = end($trxParts);
-    
-        $successfulPayments = array_filter($payments, function ($payment) use ($orderId, $receiptNumber) {
+        $successfulPayments = array_filter($payments, function ($payment) use ($orderId) {
             if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
             $success = $payment['status'] == 'PAYMENT_SUCCESS';
             $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-            $matchedReceiptNum = $payment['receiptNumber'] == $receiptNumber;
-            return $success && $matchedRefNum && $matchedReceiptNum;
+            return $success && $matchedRefNum;
         });
     
-        if (count($successfulPayments) === 0) return;
-    
-        $successfulPayment = $successfulPayments[0];
-    
-        wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canRefund: ' . ($successfulPayment['canRefund'] == true ? 'true' : 'false'));
-        wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canVoid: ' . ($successfulPayment['canVoid'] == true ? 'true' : 'false'));
-    
-        if ($successfulPayment['canVoid']) {
-            echo '<span style="color: blue; text-decoration: underline;" class="tips" data-tip="Refunding this order voids the payments for this transaction">Voidable</span>';
+        if (count($successfulPayments) !== 0) {
+            $successfulPayment = $successfulPayments[0];
+        
+            wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canRefund: ' . ($successfulPayment['canRefund'] == true ? 'true' : 'false'));
+            wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canVoid: ' . ($successfulPayment['canVoid'] == true ? 'true' : 'false'));
+        
+            if ($successfulPayment['canVoid']) {
+                echo '<span style="color: blue; text-decoration: underline;" class="tips" data-tip="Refunding this order voids the payments for this transaction">Voidable</span>';
+            }
+        }
+
+        $authorizedPayments = array_filter($payments, function ($payment) use ($orderId) {
+            if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+            $authorized = $payment['status'] == 'AUTHORIZED';
+            $canCapture = $payment['canCapture'] == true;
+            $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+            return $authorized && $canCapture && $matchedRefNum;
+        });
+
+        if (count($authorizedPayments) !== 0) {
+            $authorizedPayment = $authorizedPayments[0];
+        
+            wc_get_logger()->log('info', 'Payment ID ' . $authorizedPayment['id']);
+        
+            echo '<button type="button" class="button capture-items">Capture</button>';
         }
     }
 }
