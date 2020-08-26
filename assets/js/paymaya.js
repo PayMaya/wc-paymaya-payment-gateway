@@ -10,9 +10,23 @@ jQuery(document).ready(function ($) {
                     <table class="wc-order-totals">
                         <tbody>
                             <tr>
-                                <td class="label">Order Total:</td>
+                                <td class="label">Authorized total:</td>
                                 <td width="1%"></td>
-                                <td class="total total-capture">
+                                <td class="total total-authorized">
+                                    <span class="woocommerce-Price-amount amount"></span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label">Amount already captured:</td>
+                                <td width="1%"></td>
+                                <td class="total total-captured">
+                                    <span class="woocommerce-Price-amount amount"></span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label">Remaining order total:</td>
+                                <td width="1%"></td>
+                                <td class="total total-remaining">
                                     <span class="woocommerce-Price-amount amount"></span>
                                 </td>
                             </tr>
@@ -33,7 +47,6 @@ jQuery(document).ready(function ($) {
                             <span class="wc-order-capture-amount">
                                 <span class="woocommerce-Price-amount amount"></span>
                             </span>
-                            via Payments via Paymaya
                         </button>
                         <button type="button" class="button cancel-capture-action" style="float: left; margin-left: 0;">Cancel</button>
                     </div>
@@ -44,9 +57,35 @@ jQuery(document).ready(function ($) {
             $('button.capture-items').on('click', this.capture_payment);
             $('button.cancel-capture-action').on('click', this.cancel_capture);
             $('input#capture_amount').on('keyup change', this.update_capture_value);
-            $('td.total-capture > .amount').text(
+            $('td.total-authorized > .amount').text(
                 accounting.formatMoney(
                     totalAmount,
+                    {
+                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
+                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
+                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
+                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
+                        format: woocommerce_admin_meta_boxes.currency_format
+                    }
+                )
+            );
+
+            $('td.total-captured > .amount').text(
+                accounting.formatMoney(
+                    0,
+                    {
+                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
+                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
+                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
+                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
+                        format: woocommerce_admin_meta_boxes.currency_format
+                    }
+                )
+            );
+
+            $('td.total-remaining > .amount').text(
+                accounting.formatMoney(
+                    0,
                     {
                         symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
                         decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
