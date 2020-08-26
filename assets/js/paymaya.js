@@ -1,4 +1,8 @@
 jQuery(document).ready(function ($) {
+    const {
+        total_amount: totalAmount,
+    } = cynder_paymaya_order;
+
     const capturePanel = {
         init: function () {
             const captureInterface = `
@@ -8,13 +12,8 @@ jQuery(document).ready(function ($) {
                             <tr>
                                 <td class="label">Order Total:</td>
                                 <td width="1%"></td>
-                                <td class="total">
-                                    <span class="woocommerce-Price-amount amount">
-                                        <bdi>
-                                            <span clas="woocommerce-Price-currencySymbol">P</span>
-                                            200.00
-                                        </bdi>
-                                    </span>
+                                <td class="total total-capture">
+                                    <span class="woocommerce-Price-amount amount"></span>
                                 </td>
                             </tr>
                             <tr>
@@ -32,10 +31,7 @@ jQuery(document).ready(function ($) {
                         <button type="button" class="button button-primary do-capture-amount">
                             Capture
                             <span class="wc-order-capture-amount">
-                                <span class="woocommerce-Price-amount amount">
-                                    <span class="woocommerce-Price-currencySymbol">P</span>
-                                    200.00
-                                </span>
+                                <span class="woocommerce-Price-amount amount"></span>
                             </span>
                             via Payments via Paymaya
                         </button>
@@ -47,6 +43,19 @@ jQuery(document).ready(function ($) {
             $('#woocommerce-order-items > .inside').append(captureInterface);
             $('button.capture-items').on('click', this.capture_payment);
             $('button.cancel-capture-action').on('click', this.cancel_capture);
+            $('input#capture_amount').on('keyup change', this.update_capture_value);
+            $('td.total-capture > .amount').text(
+                accounting.formatMoney(
+                    totalAmount,
+                    {
+                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
+                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
+                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
+                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
+                        format: woocommerce_admin_meta_boxes.currency_format
+                    }
+                )
+            );
         },
         capture_payment: function () {
             $( 'div.wc-order-capture-items' ).slideDown();
@@ -73,6 +82,22 @@ jQuery(document).ready(function ($) {
 			// } );
 
 			return false;
+        },
+        update_capture_value: function () {
+            let value = accounting.unformat($(this).val() || '0', woocommerce_admin.mon_decimal_point);
+
+            $('span.wc-order-capture-amount > .amount').text(
+                accounting.formatMoney(
+                    value,
+                    {
+                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
+                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
+                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
+                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
+                        format: woocommerce_admin_meta_boxes.currency_format
+                    }
+                )
+            );
         }
     };
 

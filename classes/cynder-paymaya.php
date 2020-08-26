@@ -437,6 +437,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
 function cynder_paymaya_scripts($hook) {
     if ($hook !== 'post.php') return;
+
+    $orderId = $_GET['post'];
+    $order = wc_get_order($orderId);
     
     wp_register_script(
         'woocommerce_cynder_paymaya',
@@ -446,7 +449,11 @@ function cynder_paymaya_scripts($hook) {
 
     wp_enqueue_script('woocommerce_cynder_paymaya');
 
-    wp_localize_script('woocommerce_cynder_paymaya', 'cynder_paymaya_order', array('hello' => 'world'));
+    $jsVar = array(
+        'total_amount' => intval($order->get_total()),
+    );
+
+    wp_localize_script('woocommerce_cynder_paymaya', 'cynder_paymaya_order', $jsVar);
 }
 
 add_action(
