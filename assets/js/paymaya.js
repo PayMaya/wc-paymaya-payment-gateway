@@ -158,7 +158,9 @@ jQuery(document).ready(function ($) {
                     type: 'POST',
                 })
                 .done(response => {
-                    console.log(response);
+                    if (response.success) {
+                        window.location.reload();
+                    }
                 })
                 .fail((jqXhr, textStatus, err) => console.log(err))
                 .always(() => {

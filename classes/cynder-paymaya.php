@@ -242,6 +242,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             "totalAmount" => array(
                 "value" => intval($order->get_total()),
                 "currency" => $order->get_currency(),
+                "details" => array(
+                    "discount" => intval($order->get_discount_total()),
+                    "shippingFee" => intval($order->get_shipping_total()),
+                    "subtotal" => $order->get_subtotal()
+                )
             ),
             "buyer" => array(
                 "firstName" => $order->get_billing_first_name(),
@@ -250,7 +255,17 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     "phone" => $order->get_billing_phone(),
                     "email" => $order->get_billing_email()
                 ),
-                "billing_address" => array(
+                "shippingAddress" => array(
+                    "firstName" => $order->get_shipping_first_name(),
+                    "lastName" => $order->get_shipping_last_name(),
+                    "line1" => $order->get_shipping_address_1(),
+                    "line2" => $order->get_shipping_address_2(),
+                    "city" => $order->get_shipping_city(),
+                    "state" => $order->get_shipping_state(),
+                    "zipCode" => $order->get_shipping_postcode(),
+                    "countryCode" => $order->get_shipping_country(),
+                ),
+                "billingAddress" => array(
                     "line1" => $order->get_billing_address_1(),
                     "line2" => $order->get_billing_address_2(),
                     "city" => $order->get_billing_city(),
@@ -276,7 +291,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $encodedPayload = json_encode($payload);
 
-        wc_get_logger()->log('info', 'Payload' . $encodedPayload);
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'Payload' . $encodedPayload);
 
         $response = $this->client->createCheckout($encodedPayload);
 
@@ -295,7 +311,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $order = wc_get_order($orderId);
         $payments = $this->client->getPaymentViaRrn($orderId);
 
-        wc_get_logger()->log('info', 'Order ID ' . $orderId);
+        /** Enable for debugging */
+        // wc_get_logger()->log('info', 'Order ID ' . $orderId);
 
         $transactionId = $order->get_transaction_id();
         $receiptNumber = end(explode('-', $transactionId));
@@ -317,7 +334,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     
         $successfulPayment = $successfulPayments[0];
 
-        wc_get_logger()->log('info', 'PAYMENT ' . json_encode($successfulPayment));
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'PAYMENT ' . json_encode($successfulPayment));
 
         if (!$successfulPayment) {
             return new WP_Error(404, 'Can\'t find payment record to refund in Paymaya');
@@ -384,6 +402,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             die();
         }
 
+        wc_get_logger()->log('info', 'Checkout ' . json_encode($checkout));
+
         $checkoutStatus = $checkout['status'];
         $paymentStatus = $checkout['paymentStatus'];
 
@@ -402,7 +422,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $orderId = $order->get_id();
         $payments = $this->client->getPaymentViaRrn($orderId);
 
-        wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
     
         $successfulPayments = array_values(
             array_filter(
@@ -419,8 +440,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         if (count($successfulPayments) !== 0) {
             $successfulPayment = $successfulPayments[0];
         
-            wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canRefund: ' . ($successfulPayment['canRefund'] == true ? 'true' : 'false'));
-            wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canVoid: ' . ($successfulPayment['canVoid'] == true ? 'true' : 'false'));
+            /** Enable for debugging purposes */
+            // wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canRefund: ' . ($successfulPayment['canRefund'] == true ? 'true' : 'false'));
+            // wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canVoid: ' . ($successfulPayment['canVoid'] == true ? 'true' : 'false'));
         
             if ($successfulPayment['canVoid']) {
                 echo '<span style="color: blue; text-decoration: underline;" class="tips" data-tip="Refunding this order voids the payments for this transaction">Voidable</span>';
@@ -443,7 +465,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         if (count($authorizedPayments) !== 0) {
             $authorizedPayment = $authorizedPayments[0];
         
-            wc_get_logger()->log('info', 'Payment ID ' . $authorizedPayment['id']);
+            /** Enable for debugging purposes */
+            // wc_get_logger()->log('info', 'Payment ID ' . $authorizedPayment['id']);
         
             echo '<button type="button" class="button capture-items">Capture</button>';
         }
@@ -548,7 +571,8 @@ function capture_payment() {
 
     $response = $client->capturePayment($authorizedPayment['id'], $payload);
 
-    wc_get_logger()->log('info', 'Response ' . json_encode($response));
+    /** Enable for debugging purposes */
+    // wc_get_logger()->log('info', 'Response ' . json_encode($response));
 
     if (array_key_exists("error", $response)) {
         wc_get_logger()->log('error', $response['error']);
@@ -559,7 +583,7 @@ function capture_payment() {
         );
     }
 
-    wp_send_json(array('message' => 'Successfully captured'), 200);
+    wp_send_json(array('success' => true), 200);
 }
 
 add_action(
