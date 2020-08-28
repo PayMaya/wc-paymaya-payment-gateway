@@ -15,6 +15,9 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
+$fileDir = dirname(__FILE__);
+include_once $fileDir.'/paymaya-client.php';
+
 /**
  * Paymaya Class
  * 
@@ -94,9 +97,6 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             10,
             1
         );
-
-        $fileDir = dirname(__FILE__);
-        include_once $fileDir.'/paymaya-client.php';
 
         $this->client = new Cynder_PaymayaClient($this->sandbox === 'yes', $this->public_key, $this->secret_key);
     }
@@ -300,13 +300,18 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $transactionId = $order->get_transaction_id();
         $receiptNumber = end(explode('-', $transactionId));
 
-        $successfulPayments = array_filter($payments, function ($payment) use ($orderId, $receiptNumber) {
-            if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-            $success = $payment['status'] == 'PAYMENT_SUCCESS';
-            $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-            $matchedReceiptNum = $payment['receiptNumber'] == $receiptNumber;
-            return $success && $matchedRefNum && $matchedReceiptNum;
-        });
+        $successfulPayments = array_values(
+            array_filter(
+                $payments,
+                function ($payment) use ($orderId, $receiptNumber) {
+                    if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                    $success = $payment['status'] == 'PAYMENT_SUCCESS';
+                    $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+                    $matchedReceiptNum = $payment['receiptNumber'] == $receiptNumber;
+                    return $success && $matchedRefNum && $matchedReceiptNum;
+                }
+            )
+        );
     
         if (count($successfulPayments) === 0) return;
     
@@ -399,12 +404,17 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
     
-        $successfulPayments = array_filter($payments, function ($payment) use ($orderId) {
-            if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-            $success = $payment['status'] == 'PAYMENT_SUCCESS';
-            $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-            return $success && $matchedRefNum;
-        });
+        $successfulPayments = array_values(
+            array_filter(
+                $payments,
+                function ($payment) use ($orderId) {
+                    if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                    $success = $payment['status'] == 'PAYMENT_SUCCESS';
+                    $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+                    return $success && $matchedRefNum;
+                }
+            )
+        );
     
         if (count($successfulPayments) !== 0) {
             $successfulPayment = $successfulPayments[0];
@@ -417,13 +427,18 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             }
         }
 
-        $authorizedPayments = array_filter($payments, function ($payment) use ($orderId) {
-            if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-            $authorized = $payment['status'] == 'AUTHORIZED';
-            $canCapture = $payment['canCapture'] == true;
-            $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-            return $authorized && $canCapture && $matchedRefNum;
-        });
+        $authorizedPayments = array_values(
+            array_filter(
+                $payments,
+                function ($payment) use ($orderId) {
+                    if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                    $authorized = $payment['status'] == 'AUTHORIZED';
+                    $canCapture = $payment['canCapture'] == true;
+                    $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+                    return $authorized && $canCapture && $matchedRefNum;
+                }
+            )
+        );
 
         if (count($authorizedPayments) !== 0) {
             $authorizedPayment = $authorizedPayments[0];
@@ -450,6 +465,7 @@ function cynder_paymaya_scripts($hook) {
     wp_enqueue_script('woocommerce_cynder_paymaya');
 
     $jsVar = array(
+        'order_id' => $orderId,
         'total_amount' => intval($order->get_total()),
     );
 
@@ -459,4 +475,94 @@ function cynder_paymaya_scripts($hook) {
 add_action(
     'admin_enqueue_scripts',
     'cynder_paymaya_scripts'
+);
+
+function capture_payment() {
+    $captureAmount = $_POST['capture_amount'];
+    $orderId = $_POST['order_id'];
+
+    if (!isset($captureAmount)) {
+        return wp_send_json(
+            array('error' => 'Invalid capture amount'),
+            400
+        );
+    }
+
+    if (!isset($orderId)) {
+        return wp_send_json(
+            array('error' => 'Invalid order ID'),
+            400
+        );
+    }
+
+    $paymentGatewaId = 'paymaya';
+    $paymentGateways = WC_Payment_Gateways::instance();
+
+    $paymayaGateway = $paymentGateways->payment_gateways()[$paymentGatewaId];
+
+    $paymentGatewayEnabled = $paymayaGateway->get_option('enabled');
+
+    if ($paymentGatewayEnabled !== 'yes') {
+        return wp_send_json(
+            array('error' => 'Payment gateway must be enabled'),
+            400
+        );
+    }
+
+    $isSandbox = $paymayaGateway->get_option('sandbox');
+    $secretKey = $paymayaGateway->get_option('secret_key');
+    $publicKey = $paymayaGateway->get_option('public_key');
+
+    $client = new Cynder_PaymayaClient($isSandbox === 'yes', $publicKey, $secretKey);
+
+    $payments = $client->getPaymentViaRrn($orderId);
+
+    $authorizedPayments = array_filter($payments, function ($payment) use ($orderId) {
+        if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+        $authorized = $payment['status'] == 'AUTHORIZED';
+        $canCapture = $payment['canCapture'] == true;
+        $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+        return $authorized && $canCapture && $matchedRefNum;
+    });
+
+    if (count($authorizedPayments) === 0) {
+        return wp_send_json(
+            array('error' => 'No authorized payments to capture'),
+            400
+        );
+    }
+
+    $authorizedPayment = $authorizedPayments[0];
+    $order = wc_get_order($orderId);
+    $currency = $order->get_currency();
+
+    $payload = json_encode(
+        array(
+            'requestReferenceNumber' => $orderId,
+            'captureAmount' => array(
+                'amount' => $captureAmount,
+                'currency' => $currency
+            )
+        )
+    );
+
+    $response = $client->capturePayment($authorizedPayment['id'], $payload);
+
+    wc_get_logger()->log('info', 'Response ' . json_encode($response));
+
+    if (array_key_exists("error", $response)) {
+        wc_get_logger()->log('error', $response['error']);
+
+        return wp_send_json(
+            array('error' => $response['error']),
+            400
+        );
+    }
+
+    wp_send_json(array('message' => 'Successfully captured'), 200);
+}
+
+add_action(
+    'wp_ajax_capture_payment',
+    'capture_payment'
 );

@@ -1,5 +1,6 @@
 jQuery(document).ready(function ($) {
     const {
+        order_id: orderId,
         total_amount: totalAmount,
     } = cynder_paymaya_order;
 
@@ -57,6 +58,7 @@ jQuery(document).ready(function ($) {
             $('button.capture-items').on('click', this.capture_payment);
             $('button.cancel-capture-action').on('click', this.cancel_capture);
             $('input#capture_amount').on('keyup change', this.update_capture_value);
+            $('button.do-capture-amount').on('click', this.do_capture_amount);
             $('td.total-authorized > .amount').text(
                 accounting.formatMoney(
                     totalAmount,
@@ -137,6 +139,46 @@ jQuery(document).ready(function ($) {
                     }
                 )
             );
+        },
+        do_capture_amount: function () {
+            capturePanel.block();
+
+            if (window.confirm('Are you sure you want to capture this payment?')) {
+                const captureAmount = $('#capture_amount').val();
+
+                const data = {
+                    action: 'capture_payment',
+                    order_id: orderId,
+                    capture_amount: Number(captureAmount),
+                };
+
+                $.ajax({
+                    url: woocommerce_admin_meta_boxes.ajax_url,
+                    data,
+                    type: 'POST',
+                })
+                .done(response => {
+                    console.log(response);
+                })
+                .fail((jqXhr, textStatus, err) => console.log(err))
+                .always(() => {
+                    capturePanel.unblock();
+                });
+            } else {
+                capturePanel.unblock();
+            }
+        },
+        block: function () {
+            $( '#woocommerce-order-items' ).block({
+				message: null,
+				overlayCSS: {
+					background: '#fff',
+					opacity: 0.6
+				}
+			});
+        },
+        unblock: function () {
+            $( '#woocommerce-order-items' ).unblock();
         }
     };
 

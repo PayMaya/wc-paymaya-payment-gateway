@@ -121,4 +121,16 @@ class Cynder_PaymayaClient {
 
         return $this->handleResponse($response);
     }
+
+    public function capturePayment($paymentId, $payload) {
+        $requestArgs = array(
+            'body' => $payload,
+            'method' => 'POST',
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/capture', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
 }
