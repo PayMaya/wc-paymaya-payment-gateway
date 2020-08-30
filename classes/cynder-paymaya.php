@@ -398,6 +398,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $requestBody = file_get_contents('php://input');
         $checkout = json_decode($requestBody, true);
 
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'Checkout ' . json_encode($checkout));
+
         $referenceNumber = $checkout['requestReferenceNumber'];
 
         $order = wc_get_order($referenceNumber);
@@ -409,17 +412,78 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             die();
         }
 
-        wc_get_logger()->log('info', 'Checkout ' . json_encode($checkout));
-
         $checkoutStatus = $checkout['status'];
         $paymentStatus = $checkout['paymentStatus'];
 
-        if ($checkoutStatus === 'COMPLETED' && $paymentStatus === 'PAYMENT_SUCCESS') {
-            $transactionRefNumber = $checkout['transactionReferenceNumber'];
+        if ($checkoutStatus !== 'COMPLETED' || $paymentStatus !== 'PAYMENT_SUCCESS') {
+            wc_get_logger()->log('error', 'Failed to complete order because checkout is ' . $checkoutStatus . ' and  payment is ' . $paymentStatus);
+            return;
+        }
+
+        $orderMetadata = $order->get_meta_data();
+
+        $authorizationTypeMetadata = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+
+        $totalAmountData = $checkout['totalAmount'];
+        $totalAmount = $totalAmountData['details']['subtotal'];
+        $amountPaid = $totalAmountData['value'];
+
+        /** Get txn ref number */
+        $transactionRefNumber = $checkout['transactionReferenceNumber'];
+
+        if ($authorizationTypeMetadata['value'] === 'none') {
+            /** For non-manual capture payments: */
+
+            /** With correct data based on assumptions */
+            if ($totalAmount === $amountPaid) {
+                $order->payment_complete($transactionRefNumber);
+            } else {
+                wc_get_logger()->log('error', 'Amount mismatch. Open payment details on Paymaya dashboard with txn ref number ' . $transactionRefNumber);
+            }
+        } else {
+            /** For manual capture payments */
+
+            $payments = $this->client->getPaymentViaRrn($referenceNumber);
+
+            /** Enable for debugging purposes */
+            // wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
+
+            if (array_key_exists("error", $payments)) {
+                wc_get_logger()->log('error', $payments['error']);
+                return;
+            }
+
+            if (count($payments) === 0) {
+                wc_get_logger()->log('error', 'No payments associated to order ID ' . $referenceNumber);
+                return;
+            }
+
+            $capturedPayments = array_values(
+                array_filter(
+                    $payments,
+                    function ($payment) {
+                        if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                        $captured = $payment['status'] == 'CAPTURED';
+                        return $authorized || $captured;
+                    }
+                )
+            );
+
+            if (count($capturedPayments) === 0) {
+                wc_get_logger()->log('error', 'No captured payments associated to order ID ' . $referenceNumber);
+                return;
+            }
+
+            if (count($capturedPayments) > 2) {
+                wc_get_logger()->log('error', 'Multiple captured payments associated to order ID ' . $referenceNumber);
+                return;
+            }
+
+            $capturedPayment = $capturedPayments[0];
+
+            if ($capturedPayment['amount'] !== $capturedPayment['capturedAmount']) return;
 
             $order->payment_complete($transactionRefNumber);
-        } else {
-            wc_get_logger()->log('error', 'Failed to complete order because checkout is ' . $checkoutStatus . ' and  payment is ' . $paymentStatus);
         }
 
         wc_get_logger()->log('info', 'Webhook processing for checkout ID ' . $checkout['id']);
@@ -471,15 +535,16 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 function ($payment) use ($orderId) {
                     if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
                     $authorized = $payment['status'] == 'AUTHORIZED';
+                    $captured = $payment['status'] == 'CAPTURED';
                     $canCapture = $payment['canCapture'] == true;
                     $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-                    return $authorized && $canCapture && $matchedRefNum;
+                    return ($authorized || $captured) && $canCapture && $matchedRefNum;
                 }
             )
         );
 
         if (count($authorizedPayments) !== 0) {
-            $authorizedPayment = $authorizedPayments[0];
+            // $authorizedPayment = $authorizedPayments[0];
         
             /** Enable for debugging purposes */
             // wc_get_logger()->log('info', 'Payment ID ' . $authorizedPayment['id']);

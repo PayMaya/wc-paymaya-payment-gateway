@@ -67,13 +67,18 @@ function capture_payment() {
 
     $payments = $client->getPaymentViaRrn($orderId);
 
-    $authorizedPayments = array_filter($payments, function ($payment) use ($orderId) {
-        if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-        $authorized = $payment['status'] == 'AUTHORIZED';
-        $canCapture = $payment['canCapture'] == true;
-        $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-        return $authorized && $canCapture && $matchedRefNum;
-    });
+    $authorizedPayments = array_values(
+        array_filter($payments, function ($payment) use ($orderId) {
+            if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+            $authorized = $payment['status'] == 'AUTHORIZED';
+            $captured = $payment['status'] == 'CAPTURED';
+            $canCapture = $payment['canCapture'] == true;
+            $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+            return ($authorized || $captured) && $canCapture && $matchedRefNum;
+        })
+    );
+
+    wc_get_logger()->log('info', 'Authorized Payments ' . json_encode($authorizedPayments));
 
     if (count($authorizedPayments) === 0) {
         return wp_send_json(
@@ -99,7 +104,7 @@ function capture_payment() {
     $response = $client->capturePayment($authorizedPayment['id'], $payload);
 
     /** Enable for debugging purposes */
-    // wc_get_logger()->log('info', 'Response ' . json_encode($response));
+    wc_get_logger()->log('info', 'Response ' . json_encode($response));
 
     if (array_key_exists("error", $response)) {
         wc_get_logger()->log('error', $response['error']);
