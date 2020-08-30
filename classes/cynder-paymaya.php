@@ -296,10 +296,17 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $response = $this->client->createCheckout($encodedPayload);
 
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'Response ' . json_encode($response));
+
         if (array_key_exists("error", $response)) {
             wc_add_notice($response["error"], "error");
             return null;
         }
+
+        $order->add_meta_data($this->id . '_checkout_id', $response['checkoutId']);
+        $order->add_meta_data($this->id . '_authorization_type', $this->manual_capture);
+        $order->save_meta_data();
 
         return array(
             "result" => "success",
@@ -448,6 +455,15 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 echo '<span style="color: blue; text-decoration: underline;" class="tips" data-tip="Refunding this order voids the payments for this transaction">Voidable</span>';
             }
         }
+
+        $orderMetadata = $order->get_meta_data();
+
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'Metadata ' . json_encode($orderMetadata));
+
+        $authorizationTypeMetadata = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+
+        if ($authorizationTypeMetadata['value'] === 'none') return;
 
         $authorizedPayments = array_values(
             array_filter(
