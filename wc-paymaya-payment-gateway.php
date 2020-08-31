@@ -144,6 +144,7 @@ function Paymaya_Init_Gateway_class()
             {
                 $fileDir = dirname(__FILE__);
                 include_once $fileDir.'/classes/cynder-paymaya.php';
+                include_once 'paymaya-top-level-hooks.php';
 
                 add_filter(
                     'woocommerce_payment_gateways',
