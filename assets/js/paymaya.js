@@ -1,15 +1,24 @@
 jQuery(document).ready(function ($) {
     const {
         order_id: orderId,
-        total_amount: totalAmount,
+        amount_authorized: amountAuthorized,
+        amount_captured: amountCaptured,
     } = cynder_paymaya_order;
+
+    let amountRemaining = 0;
+    const _amountAuthorized = Number(amountAuthorized);
+    const _amountCaptured = Number(amountCaptured);
+
+    if (_amountAuthorized > _amountCaptured) {
+        amountRemaining = _amountAuthorized - _amountCaptured;
+    }
 
     const capturePanel = {
         init: function () {
             const captureInterface = `
                 <div class="wc-order-data-row wc-order-capture-items wc-order-data-row-toggle" style="display: none;">
                     <table class="wc-order-totals">
-                        <tbody>
+                        <tbody id="capture-items-table-body">
                             <tr>
                                 <td class="label">Authorized total:</td>
                                 <td width="1%"></td>
@@ -35,7 +44,7 @@ jQuery(document).ready(function ($) {
                                 <td class="label">Amount to Capture:</td>
                                 <td width="1%"></td>
                                 <td class="total">
-                                    <input type="text" id="capture_amount" name="capture_amount" class="wc_input_price">
+                                    <input type="text" id="capture_amount" name="capture_amount" class="wc_input_price" min="1" required>
                                     <div class="clear"></div>
                                 </td>
                             </tr>
@@ -61,7 +70,7 @@ jQuery(document).ready(function ($) {
             $('button.do-capture-amount').on('click', this.do_capture_amount);
             $('td.total-authorized > .amount').text(
                 accounting.formatMoney(
-                    totalAmount,
+                    amountAuthorized,
                     {
                         symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
                         decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
@@ -74,7 +83,7 @@ jQuery(document).ready(function ($) {
 
             $('td.total-captured > .amount').text(
                 accounting.formatMoney(
-                    0,
+                    amountCaptured,
                     {
                         symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
                         decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
@@ -87,7 +96,7 @@ jQuery(document).ready(function ($) {
 
             $('td.total-remaining > .amount').text(
                 accounting.formatMoney(
-                    0,
+                    amountRemaining,
                     {
                         symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
                         decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
@@ -97,6 +106,9 @@ jQuery(document).ready(function ($) {
                     }
                 )
             );
+
+
+            $('#capture_amount').attr('max', amountRemaining);
         },
         capture_payment: function () {
             $( 'div.wc-order-capture-items' ).slideDown();
@@ -141,11 +153,28 @@ jQuery(document).ready(function ($) {
             );
         },
         do_capture_amount: function () {
+            const captureAmount = Number($('#capture_amount').val() || 0);
+
+            capturePanel.remove_capture_input_error();
+
+            if (captureAmount === 0) {
+                const minimumAmount = accounting.formatMoney(
+                    1,
+                    {
+                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
+                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
+                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
+                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
+                        format: woocommerce_admin_meta_boxes.currency_format
+                    }
+                );
+                capturePanel.add_capture_input_error(`Amount to capture must at least be ${minimumAmount}`);
+                return;
+            }
+
             capturePanel.block();
 
             if (window.confirm('Are you sure you want to capture this payment?')) {
-                const captureAmount = $('#capture_amount').val();
-
                 const data = {
                     action: 'capture_payment',
                     order_id: orderId,
@@ -181,6 +210,22 @@ jQuery(document).ready(function ($) {
         },
         unblock: function () {
             $( '#woocommerce-order-items' ).unblock();
+        },
+        add_capture_input_error: function (errorMessage) {
+            $('#capture_amount').css('border-color', 'red');
+            $('#capture-items-table-body').append(`
+                <tr id="capture-input-error">
+                    <td colspan="3">
+                        <span style="color: red;">
+                            ${errorMessage}
+                        </span>
+                    </td>
+                </tr>
+            `);
+        },
+        remove_capture_input_error: function() {
+            $('#capture_amount').css('border-color', 'black');
+            $('#capture-input-error').remove();
         }
     };
 

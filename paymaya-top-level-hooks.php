@@ -3,9 +3,76 @@
 function cynder_paymaya_scripts($hook) {
     if ($hook !== 'post.php') return;
 
+    $paymentGatewaId = 'paymaya';
+    $paymentGateways = WC_Payment_Gateways::instance();
+
+    $paymayaGateway = $paymentGateways->payment_gateways()[$paymentGatewaId];
+
+    $paymentGatewayEnabled = $paymayaGateway->get_option('enabled');
+
+    /** If gateway isn't enabled, don't load JS scripts */
+    if ($paymentGatewayEnabled !== 'yes') return;
+
     $orderId = $_GET['post'];
     $order = wc_get_order($orderId);
-    
+
+    $orderMetadata = $order->get_meta_data();
+
+    $authorizationTypeMetadata = array_search($paymentGatewaId . '_authorization_type', array_column($orderMetadata, 'key'));
+
+    /** If order isn't made with manual capture, don't load JS scripts */
+    if ($authorizationTypeMetadata['value'] === 'none') return;
+
+    $isSandbox = $paymayaGateway->get_option('sandbox');
+    $secretKey = $paymayaGateway->get_option('secret_key');
+    $publicKey = $paymayaGateway->get_option('public_key');
+
+    $client = new Cynder_PaymayaClient($isSandbox === 'yes', $publicKey, $secretKey);
+
+    $payments = $client->getPaymentViaRrn($orderId);
+
+    if (array_key_exists("error", $payments)) {
+        wc_get_logger()->log('error', $payments['error']);
+        return;
+    }
+
+    if (count($payments) === 0) {
+        wc_get_logger()->log('error', 'No payments associated to order ID ' . $referenceNumber);
+        return;
+    }
+
+    $authorizedOrCapturedPayments = array_values(
+        array_filter(
+            $payments,
+            function ($payment) {
+                if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                $authorized = $payment['status'] == 'AUTHORIZED';
+                $captured = $payment['status'] == 'CAPTURED';
+                return $authorized || $captured;
+            }
+        )
+    );
+
+    if (count($authorizedOrCapturedPayments) === 0) {
+        wc_get_logger()->log('error', 'No captured payments associated to order ID ' . $referenceNumber);
+        return;
+    }
+
+    if (count($authorizedOrCapturedPayments) > 2) {
+        wc_get_logger()->log('error', 'Multiple captured payments associated to order ID ' . $referenceNumber);
+        return;
+    }
+
+    $authorizedOrCapturedPayment = $authorizedOrCapturedPayments[0];
+
+    wc_get_logger()->log('info', 'Authorized Or Captured Payment ' . json_encode($authorizedOrCapturedPayment));
+
+    $jsVar = array(
+        'order_id' => $orderId,
+        'amount_authorized' => intval($authorizedOrCapturedPayment['amount']),
+        'amount_captured' => intval($authorizedOrCapturedPayment['capturedAmount']),
+    );
+
     wp_register_script(
         'woocommerce_cynder_paymaya',
         plugins_url('assets/js/paymaya.js', CYNDER_PAYMAYA_MAIN_FILE),
@@ -13,12 +80,6 @@ function cynder_paymaya_scripts($hook) {
     );
 
     wp_enqueue_script('woocommerce_cynder_paymaya');
-
-    $jsVar = array(
-        'order_id' => $orderId,
-        'total_amount' => intval($order->get_total()),
-    );
-
     wp_localize_script('woocommerce_cynder_paymaya', 'cynder_paymaya_order', $jsVar);
 }
 
@@ -78,7 +139,8 @@ function capture_payment() {
         })
     );
 
-    wc_get_logger()->log('info', 'Authorized Payments ' . json_encode($authorizedPayments));
+    /** Enable for debugging purposes */
+    // wc_get_logger()->log('info', 'Authorized Payments ' . json_encode($authorizedPayments));
 
     if (count($authorizedPayments) === 0) {
         return wp_send_json(
