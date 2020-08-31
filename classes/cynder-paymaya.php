@@ -321,66 +321,74 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         /** Enable for debugging */
         // wc_get_logger()->log('info', 'Order ID ' . $orderId);
 
-        $transactionId = $order->get_transaction_id();
-        $receiptNumber = end(explode('-', $transactionId));
+        $orderMetadata = $order->get_meta_data();
 
-        $successfulPayments = array_values(
-            array_filter(
-                $payments,
-                function ($payment) use ($orderId, $receiptNumber) {
-                    if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-                    $success = $payment['status'] == 'PAYMENT_SUCCESS';
-                    $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-                    $matchedReceiptNum = $payment['receiptNumber'] == $receiptNumber;
-                    return $success && $matchedRefNum && $matchedReceiptNum;
-                }
-            )
-        );
-    
-        if (count($successfulPayments) === 0) return;
-    
-        $successfulPayment = $successfulPayments[0];
+        $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+        $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
 
         /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'PAYMENT ' . json_encode($successfulPayment));
+        // wc_get_logger()->log('info', 'metadata ' . json_encode($authorizationTypeMetadata));
 
-        if (!$successfulPayment) {
-            return new WP_Error(404, 'Can\'t find payment record to refund in Paymaya');
-        }
-
-        $paymentId = $successfulPayment['id'];
-
-        /** Only void if payment is voidable and full amount */
-        if ($successfulPayment['canVoid'] && $amount === intval($successfulPayment['amount'])) {
-            $response = $this->client->voidPayment($paymentId, empty($reason) ? 'Merchant manually voided' : $reason);
-
-            if (array_key_exists("error", $response)) {
-                wc_get_logger()->log('error', $response['error']);
-                return false;
-            }
-    
-            return true;
-        }
-
-        if ($successfulPayment['canRefund']) {
-            $payload = json_encode(
-                array(
-                    'totalAmount' => array(
-                        'amount' => $amount,
-                        'currency' => $successfulPayment['currency']
-                    ),
-                    'reason' => empty($reason) ? 'Merchant manually refunded' : $reason
+        if ($authorizationTypeMetadata->value === 'none') {
+            $successfulPayments = array_values(
+                array_filter(
+                    $payments,
+                    function ($payment) use ($orderId) {
+                        if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                        $success = $payment['status'] == 'PAYMENT_SUCCESS';
+                        $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
+                        return $success && $matchedRefNum;
+                    }
                 )
             );
+        
+            if (count($successfulPayments) === 0) return;
+        
+            $successfulPayment = $successfulPayments[0];
     
-            $response = $this->client->refundPayment($paymentId, $payload);
+            /** Enable for debugging purposes */
+            // wc_get_logger()->log('info', 'PAYMENT ' . json_encode($successfulPayment));
     
-            if (array_key_exists("error", $response)) {
-                wc_get_logger()->log('error', $response['error']);
-                return false;
+            if (!$successfulPayment) {
+                return new WP_Error(404, 'Can\'t find payment record to refund in Paymaya');
             }
     
-            return true;
+            $paymentId = $successfulPayment['id'];
+    
+            /** Only void if payment is voidable and full amount */
+            if ($successfulPayment['canVoid'] && $amount === intval($successfulPayment['amount'])) {
+                $response = $this->client->voidPayment($paymentId, empty($reason) ? 'Merchant manually voided' : $reason);
+    
+                if (array_key_exists("error", $response)) {
+                    wc_get_logger()->log('error', $response['error']);
+                    return false;
+                }
+        
+                return true;
+            }
+    
+            if ($successfulPayment['canRefund']) {
+                $payload = json_encode(
+                    array(
+                        'totalAmount' => array(
+                            'amount' => $amount,
+                            'currency' => $successfulPayment['currency']
+                        ),
+                        'reason' => empty($reason) ? 'Merchant manually refunded' : $reason
+                    )
+                );
+        
+                $response = $this->client->refundPayment($paymentId, $payload);
+        
+                if (array_key_exists("error", $response)) {
+                    wc_get_logger()->log('error', $response['error']);
+                    return false;
+                }
+        
+                return true;
+            }
+        } else {
+            // To-Do: Refund/void for manual capture
         }
 
         return new WP_Error(400, 'Payment cannot be refunded');
@@ -499,7 +507,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $payments = $this->client->getPaymentViaRrn($orderId);
 
         /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
+        wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
     
         $successfulPayments = array_values(
             array_filter(
