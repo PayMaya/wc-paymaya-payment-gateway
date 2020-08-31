@@ -422,7 +422,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $orderMetadata = $order->get_meta_data();
 
-        $authorizationTypeMetadata = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+        $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+        $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
+
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'metadata ' . json_encode($authorizationTypeMetadata));
 
         $totalAmountData = $checkout['totalAmount'];
         $totalAmount = $totalAmountData['details']['subtotal'];
@@ -431,7 +435,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         /** Get txn ref number */
         $transactionRefNumber = $checkout['transactionReferenceNumber'];
 
-        if ($authorizationTypeMetadata['value'] === 'none') {
+        if ($authorizationTypeMetadata->value === 'none') {
             /** For non-manual capture payments: */
 
             /** With correct data based on assumptions */

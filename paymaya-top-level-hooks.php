@@ -37,7 +37,7 @@ function cynder_paymaya_scripts($hook) {
     }
 
     if (count($payments) === 0) {
-        wc_get_logger()->log('error', 'No payments associated to order ID ' . $referenceNumber);
+        wc_get_logger()->log('error', 'No payments associated to order ID ' . $orderId);
         return;
     }
 
@@ -54,12 +54,12 @@ function cynder_paymaya_scripts($hook) {
     );
 
     if (count($authorizedOrCapturedPayments) === 0) {
-        wc_get_logger()->log('error', 'No captured payments associated to order ID ' . $referenceNumber);
+        wc_get_logger()->log('error', 'No captured payments associated to order ID ' . $orderId);
         return;
     }
 
     if (count($authorizedOrCapturedPayments) > 2) {
-        wc_get_logger()->log('error', 'Multiple captured payments associated to order ID ' . $referenceNumber);
+        wc_get_logger()->log('error', 'Multiple captured payments associated to order ID ' . $orderId);
         return;
     }
 
