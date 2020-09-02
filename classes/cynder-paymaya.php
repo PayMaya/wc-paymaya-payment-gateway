@@ -336,8 +336,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     function ($payment) use ($orderId) {
                         if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
                         $success = $payment['status'] == 'PAYMENT_SUCCESS';
+                        $refunded = $payment['status'] == 'REFUNDED';
                         $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-                        return $success && $matchedRefNum;
+                        return ($success || $refunded) && $matchedRefNum;
                     }
                 )
             );
