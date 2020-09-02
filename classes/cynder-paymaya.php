@@ -357,15 +357,20 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             $paymentId = $successfulPayment['id'];
     
             /** Only void if payment is voidable and full amount */
-            if ($successfulPayment['canVoid'] && $amount === intval($successfulPayment['amount'])) {
-                $response = $this->client->voidPayment($paymentId, empty($reason) ? 'Merchant manually voided' : $reason);
-    
-                if (array_key_exists("error", $response)) {
-                    wc_get_logger()->log('error', $response['error']);
-                    return false;
+            if ($successfulPayment['canVoid']) {
+                if ($amount === intval($successfulPayment['amount'])) {
+
+                    $response = $this->client->voidPayment($paymentId, empty($reason) ? 'Merchant manually voided' : $reason);
+
+                    if (array_key_exists("error", $response)) {
+                        wc_get_logger()->log('error', $response['error']);
+                        return false;
+                    }
+            
+                    return true;
+                } else {
+                    return new WP_Error(400, 'Partial voids are not allowed by the payment gateway');
                 }
-        
-                return true;
             }
     
             if ($successfulPayment['canRefund']) {
@@ -530,7 +535,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             // wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canVoid: ' . ($successfulPayment['canVoid'] == true ? 'true' : 'false'));
         
             if ($successfulPayment['canVoid']) {
-                echo '<span style="color: blue; text-decoration: underline;" class="tips" data-tip="Refunding this order voids the payments for this transaction">Voidable</span>';
+                echo '<span style="color: blue; text-decoration: underline;" class="tips" data-tip="Refunding the full amount for this order voids the payments for this transaction">Voidable</span>';
             }
         }
 
