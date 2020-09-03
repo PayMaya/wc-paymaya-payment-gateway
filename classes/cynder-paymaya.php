@@ -482,6 +482,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     $payments,
                     function ($payment) {
                         if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                        $authorized = $payment['status'] == 'AUTHORIZED';
                         $captured = $payment['status'] == 'CAPTURED';
                         return $authorized || $captured;
                     }
