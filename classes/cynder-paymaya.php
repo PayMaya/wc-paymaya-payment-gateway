@@ -317,6 +317,10 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     public function process_refund($orderId, $amount = NULL, $reason = '') {
         $order = wc_get_order($orderId);
         $payments = $this->client->getPaymentViaRrn($orderId);
+        $amountValue = floatval($amount);
+
+        /** Enable for debugging purposes */
+        // wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
 
         /** Enable for debugging */
         // wc_get_logger()->log('info', 'Order ID ' . $orderId);
@@ -358,7 +362,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     
             /** Only void if payment is voidable and full amount */
             if ($successfulPayment['canVoid']) {
-                if ($amount === intval($successfulPayment['amount'])) {
+                if ($amountValue === intval($successfulPayment['amount'])) {
 
                     $response = $this->client->voidPayment($paymentId, empty($reason) ? 'Merchant manually voided' : $reason);
 
@@ -377,7 +381,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 $payload = json_encode(
                     array(
                         'totalAmount' => array(
-                            'amount' => $amount,
+                            'amount' => $amountValue,
                             'currency' => $successfulPayment['currency']
                         ),
                         'reason' => empty($reason) ? 'Merchant manually refunded' : $reason
@@ -394,10 +398,175 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 return true;
             }
         } else {
-            // To-Do: Refund/void for manual capture
+            $authorizedPayments = array_values(
+                array_filter(
+                    $payments,
+                    function ($payment) {
+                        if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                        $authorized = $payment['status'] == 'AUTHORIZED';
+                        $captured = $payment['status'] == 'CAPTURED';
+                        $done = $payment['status'] == 'DONE';
+                        return $authorized || $captured || $done;
+                    }
+                )
+            );
+
+            /** If no authorized payment, return error */
+            if (count($authorizedPayments) === 0) {
+                return new WP_Error(400, 'No authorized payment to refund');
+            }
+
+            $authorizedPayment = $authorizedPayments[0];
+            $authorizedFullAmount = floatval($authorizedPayment['amount']);
+
+            /**
+             * If there are no other payments other than the authorized payment,
+             * assume there were no captures made yet.
+             */
+            if (count($payments) === 1) {
+                $paymentId = $authorizedPayment['id'];
+                $authorized = $authorizedPayment['status'] === 'AUTHORIZED';
+                $canVoid = $authorizedPayment['canVoid'];
+
+                if (!$canVoid) {
+                    return new WP_Error(400, 'Authorized payment can no longer be voided');
+                }
+                
+                if ($authorized && $authorizedFullAmount === $amountValue) {
+                    $response = $this->client->voidPayment($paymentId, empty($reason) ? 'Merchant manually voided' : $reason);
+                } else {
+                    return new WP_Error(400, 'Partial voids are not allowed by the payment gateway');
+                }
+            } else {
+                $capturedPayments = array_values(
+                    array_filter(
+                        $payments,
+                        function ($payment) {
+                            if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                            $success = $payment['status'] == 'PAYMENT_SUCCESS';
+                            $refunded = $payment['status'] == 'REFUNDED';
+                            $voided = $payment['status'] === 'VOIDED';
+
+                            return $success || $refunded || $voided;
+                        }
+                    )
+                );
+
+                $sorted = usort($capturedPayments, function ($a, $b) {
+                    return strtotime($a['createdAt']) - strtotime($b['createdAt']);
+                });
+
+                /** Enable for debugging purposes */
+                // wc_get_logger()->log('info', 'Sorted Payments ' . json_encode($capturedPayments));
+
+                if (!$sorted) {
+                    return WP_Error(400, 'Something went wrong with refunding the captured payments');
+                }
+
+                /**
+                 * New refunds are saved at this point and would just need processing.
+                 * 
+                 * To calculate the total refunds excluding the current refund value, filter it out.
+                 */
+                $refundedAmount = array_reduce($order->get_refunds(), function ($refunded, $refund) use ($amountValue, $reason) {
+                    $savedReason = $refund->get_reason();
+                    $savedAmount = $refund->get_amount();
+
+                    if ($savedReason === $reason && floatval($savedAmount) === $amountValue) return $refunded;
+
+                    return $refunded + $savedAmount;
+                }, 0);
+                $remainingAmountToRefund = $authorizedFullAmount - $refundedAmount;
+                $paymentsForRefund = [];
+
+                /** Enable for debugging purposes */
+                // wc_get_logger()->log('info', 'Authorized amount: ' . $authorizedFullAmount);
+                // wc_get_logger()->log('info', 'Refunded amount: ' . $refundedAmount);
+                // wc_get_logger()->log('info', 'Remaining amount to refund: ' . $remainingAmountToRefund);
+                
+                if ($amountValue > $remainingAmountToRefund) {
+                    return new WP_Error(400, 'Invalid refund amount');
+                }
+
+                do {
+                    $capturedPayment = array_shift($capturedPayments);
+                    $balance = $capturedPayment['amount'];
+
+                    if ($refundedAmount >= $balance) {
+                        $refundedAmount = $refundedAmount - $balance;
+                    } else {
+                        $balance = $balance - $refundedAmount;
+                        $refundedAmount = 0;
+                    }
+
+                    array_push(
+                        $paymentsForRefund,
+                        array(
+                            'id' => $capturedPayment['id'],
+                            'amount' => $balance,
+                            'currency' => $capturedPayment['currency']
+                        )
+                    );
+                } while($refundedAmount > 0 || count($capturedPayments) > 0);
+
+                /** Enable for debugging purposes */
+                // wc_get_logger()->log('info', 'Payments for refund ' . json_encode($paymentsForRefund));
+
+                $paymentsToRefund = [];
+
+                do {
+                    $paymentForRefund = array_shift($paymentsForRefund);
+                    $balance = $paymentForRefund['amount'];
+                    $amountToRefund = 0;
+
+                    if ($amountValue >= $balance) {
+                        $amountToRefund = $balance;
+                        $amountValue = $amountValue - $balance;
+                    } else {
+                        $amountToRefund = $amountValue;
+                        $amountValue = 0;
+                    }
+
+                    array_push(
+                        $paymentsToRefund,
+                        array(
+                            'id' => $paymentForRefund['id'],
+                            'currency' => $paymentForRefund['currency'],
+                            'amount' => $amountToRefund
+                        )
+                    );
+                } while($amountValue > 0);
+                
+                wc_get_logger()->log('info', 'Refunding ' . json_encode($paymentsToRefund));
+
+                return $this->do_mass_refund($paymentsToRefund, $reason);
+            }
         }
 
         return new WP_Error(400, 'Payment cannot be refunded');
+    }
+
+    function do_mass_refund($paymentsToRefund, $reason) {
+        foreach ($paymentsToRefund as $payment) {
+            $payload = json_encode(
+                array(
+                    'totalAmount' => array(
+                        'amount' => $payment['amount'],
+                        'currency' => $payment['currency'],
+                    ),
+                    'reason' => empty($reason) ? 'Merchant manually refunded' : $reason
+                )
+            );
+
+            $response = $this->client->refundPayment($payment['id'], $payload);
+
+            if (array_key_exists("error", $response)) {
+                wc_get_logger()->log('error', $response['error']);
+                return new WP_Error(400, 'Something went wrong with the refund. Check your PayMaya merchant dashboard for actual balances.');
+            }
+        }
+
+        return true;
     }
 
     public function handle_webhook_request() {
@@ -510,6 +679,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     }
 
     function wc_order_item_add_action_buttons_callback($order) {
+        wc_get_logger()->log('info', $order->get_id() . ' ' . $order->get_total_refunded());
         $orderId = $order->get_id();
         $payments = $this->client->getPaymentViaRrn($orderId);
 

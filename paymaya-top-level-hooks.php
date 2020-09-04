@@ -54,7 +54,7 @@ function cynder_paymaya_scripts($hook) {
     );
 
     if (count($authorizedOrCapturedPayments) === 0) {
-        wc_get_logger()->log('error', 'No captured payments associated to order ID ' . $orderId);
+        wc_get_logger()->log('info', '[Loading JS Scripts] No captured payments associated to order ID ' . $orderId);
         return;
     }
 
