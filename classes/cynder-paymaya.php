@@ -798,31 +798,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $capturedAmount = $authorizedOrCapturedPayment['capturedAmount'];
         $balance = floatval($authorizedAmount) - floatval($capturedAmount);
 
-        $captureHtml = "
-            </table>
-            <table class=\"wc-order-totals\" style=\"border-top: 1px solid #999; margin-top:12px; padding-top:12px\">
-                <tr>
-                    <td class=\"label\">Authorization Type:</td>
-                    <td width=\"1%\"></td>
-                    <td class=\"total\" style=\"font-weight: 700;\">" . strtoupper($authorizationType) . "</td>
-                </tr>
-                <tr>
-                    <td class=\"label\">Authorized total:</td>
-                    <td width=\"1%\"></td>
-                    <td class=\"total\">" . wc_price($authorizedAmount, $order->get_currency()) . "</td>
-                </tr>
-                <tr>
-                    <td class=\"label\">Amount already captured:</td>
-                    <td width=\"1%\"></td>
-                    <td class=\"total\">" . wc_price($capturedAmount, $order->get_currency()) . "</td>
-                </tr>
-                <tr>
-                    <td class=\"label\">Remaining order total:</td>
-                    <td width=\"1%\"></td>
-                    <td class=\"total\">" . wc_price($balance, $order->get_currency()) . "</td>
-                </tr>
-        ";
+        $pluginPath = plugin_dir_path(CYNDER_PAYMAYA_MAIN_FILE);
 
-        echo $captureHtml;
+        include $pluginPath . '/views/manual-capture.php';
     }
 }

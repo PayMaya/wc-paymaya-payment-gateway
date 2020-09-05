@@ -15,99 +15,10 @@ jQuery(document).ready(function ($) {
 
     const capturePanel = {
         init: function () {
-            const captureInterface = `
-                <div class="wc-order-data-row wc-order-capture-items wc-order-data-row-toggle" style="display: none;">
-                    <table class="wc-order-totals">
-                        <tbody id="capture-items-table-body">
-                            <tr>
-                                <td class="label">Authorized total:</td>
-                                <td width="1%"></td>
-                                <td class="total total-authorized">
-                                    <span class="woocommerce-Price-amount amount"></span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="label">Amount already captured:</td>
-                                <td width="1%"></td>
-                                <td class="total total-captured">
-                                    <span class="woocommerce-Price-amount amount"></span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="label">Remaining order total:</td>
-                                <td width="1%"></td>
-                                <td class="total total-remaining">
-                                    <span class="woocommerce-Price-amount amount"></span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="label">Amount to Capture:</td>
-                                <td width="1%"></td>
-                                <td class="total">
-                                    <input type="text" id="capture_amount" name="capture_amount" class="wc_input_price" min="1" required>
-                                    <div class="clear"></div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div class="clear"></div>
-                    <div class="refund-actions">
-                        <button type="button" class="button button-primary do-capture-amount">
-                            Capture
-                            <span class="wc-order-capture-amount">
-                                <span class="woocommerce-Price-amount amount"></span>
-                            </span>
-                        </button>
-                        <button type="button" class="button cancel-capture-action" style="float: left; margin-left: 0;">Cancel</button>
-                    </div>
-                </div>
-            `;
-
-            $('#woocommerce-order-items > .inside').append(captureInterface);
             $('button.capture-items').on('click', this.capture_payment);
             $('button.cancel-capture-action').on('click', this.cancel_capture);
             $('input#capture_amount').on('keyup change', this.update_capture_value);
             $('button.do-capture-amount').on('click', this.do_capture_amount);
-            $('td.total-authorized > .amount').text(
-                accounting.formatMoney(
-                    amountAuthorized,
-                    {
-                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
-                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
-                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
-                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
-                        format: woocommerce_admin_meta_boxes.currency_format
-                    }
-                )
-            );
-
-            $('td.total-captured > .amount').text(
-                accounting.formatMoney(
-                    amountCaptured,
-                    {
-                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
-                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
-                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
-                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
-                        format: woocommerce_admin_meta_boxes.currency_format
-                    }
-                )
-            );
-
-            $('td.total-remaining > .amount').text(
-                accounting.formatMoney(
-                    amountRemaining,
-                    {
-                        symbol: woocommerce_admin_meta_boxes.currency_format_symbol,
-                        decimal: woocommerce_admin_meta_boxes.currency_format_decimal_sep,
-                        thousand: woocommerce_admin_meta_boxes.currency_format_thousand_sep,
-                        precision: woocommerce_admin_meta_boxes.currency_format_num_decimals,
-                        format: woocommerce_admin_meta_boxes.currency_format
-                    }
-                )
-            );
-
-
             $('#capture_amount').attr('max', amountRemaining);
         },
         capture_payment: function () {
