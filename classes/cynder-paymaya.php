@@ -98,6 +98,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             1
         );
 
+        add_action(
+            'woocommerce_admin_order_totals_after_total',
+            array($this, 'wc_captured_payments')
+        );
+
         $this->client = new Cynder_PaymayaClient($this->sandbox === 'yes', $this->public_key, $this->secret_key);
     }
 
@@ -741,5 +746,83 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         
             echo '<button type="button" class="button capture-items">Capture</button>';
         }
+    }
+
+    function wc_captured_payments($orderId) {
+        $order = wc_get_order($orderId);
+
+        $orderMetadata = $order->get_meta_data();
+
+        $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+        $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
+        $authorizationType = $authorizationTypeMetadata->value;
+
+        if ($authorizationType === 'none') return;
+
+        $payments = $this->client->getPaymentViaRrn($orderId);
+
+        if (array_key_exists("error", $payments)) {
+            wc_get_logger()->log('error', $payments['error']);
+            return;
+        }
+    
+        if (count($payments) === 0) {
+            wc_get_logger()->log('error', 'No payments associated to order ID ' . $orderId);
+            return;
+        }
+
+        $authorizedOrCapturedPayments = array_values(
+            array_filter(
+                $payments,
+                function ($payment) {
+                    if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
+                    $authorized = $payment['status'] == 'AUTHORIZED';
+                    $captured = $payment['status'] == 'CAPTURED';
+                    return $authorized || $captured;
+                }
+            )
+        );
+
+        if (count($authorizedOrCapturedPayments) === 0) {
+            wc_get_logger()->log('info', '[Adding Captured Amounts] No captured payments associated to order ID ' . $orderId);
+            return;
+        }
+    
+        if (count($authorizedOrCapturedPayments) > 2) {
+            wc_get_logger()->log('error', '[Adding Captured Amounts] Multiple captured payments associated to order ID ' . $orderId);
+            return;
+        }
+
+        $authorizedOrCapturedPayment = $authorizedOrCapturedPayments[0];
+        $authorizedAmount = $authorizedOrCapturedPayment['amount'];
+        $capturedAmount = $authorizedOrCapturedPayment['capturedAmount'];
+        $balance = floatval($authorizedAmount) - floatval($capturedAmount);
+
+        $captureHtml = "
+            </table>
+            <table class=\"wc-order-totals\" style=\"border-top: 1px solid #999; margin-top:12px; padding-top:12px\">
+                <tr>
+                    <td class=\"label\">Authorization Type:</td>
+                    <td width=\"1%\"></td>
+                    <td class=\"total\" style=\"font-weight: 700;\">" . strtoupper($authorizationType) . "</td>
+                </tr>
+                <tr>
+                    <td class=\"label\">Authorized total:</td>
+                    <td width=\"1%\"></td>
+                    <td class=\"total\">" . wc_price($authorizedAmount, $order->get_currency()) . "</td>
+                </tr>
+                <tr>
+                    <td class=\"label\">Amount already captured:</td>
+                    <td width=\"1%\"></td>
+                    <td class=\"total\">" . wc_price($capturedAmount, $order->get_currency()) . "</td>
+                </tr>
+                <tr>
+                    <td class=\"label\">Remaining order total:</td>
+                    <td width=\"1%\"></td>
+                    <td class=\"total\">" . wc_price($balance, $order->get_currency()) . "</td>
+                </tr>
+        ";
+
+        echo $captureHtml;
     }
 }
