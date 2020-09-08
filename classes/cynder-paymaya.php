@@ -187,9 +187,10 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     }
 
     public function process_admin_options() {
-        global $woocommerce;
-
         $is_options_saved = parent::process_admin_options();
+
+        $webhookSuccessUrl = $this->get_option('webhook_success');
+        $webhookFailureUrl = $this->get_option('webhook_failure');
 
         if (isset($this->enabled) && $this->enabled === 'yes' && isset($this->public_key) && isset($this->secret_key)) {
             $webhooks = $this->client->retrieveWebhooks();
@@ -206,8 +207,13 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 }
             }
 
-            $createdWebhook = $this->client->createWebhook('CHECKOUT_SUCCESS', $this->webhook_success);
-            $createdWebhook = $this->client->createWebhook('CHECKOUT_FAILURE', $this->webhook_failure);
+            $createdWebhook = $this->client->createWebhook('CHECKOUT_SUCCESS', $webhookSuccessUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $createdWebhook = $this->client->createWebhook('CHECKOUT_FAILURE',$webhookFailureUrl);
 
             if (array_key_exists("error", $createdWebhook)) {
                 $this->add_error($createdWebhook["error"]);
