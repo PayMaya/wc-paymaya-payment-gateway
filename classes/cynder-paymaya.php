@@ -373,7 +373,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     
             /** Only void if payment is voidable and full amount */
             if ($successfulPayment['canVoid']) {
-                if ($amountValue === intval($successfulPayment['amount'])) {
+                if ($amountValue === floatval($successfulPayment['amount'])) {
 
                     $response = $this->client->voidPayment($paymentId, empty($reason) ? 'Merchant manually voided' : $reason);
 
