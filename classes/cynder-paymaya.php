@@ -662,9 +662,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     $payments,
                     function ($payment) {
                         if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-                        $authorized = $payment['status'] == 'AUTHORIZED';
-                        $captured = $payment['status'] == 'CAPTURED';
-                        return $authorized || $captured;
+                        return array_key_exists('authorizationType', $payment);
                     }
                 )
             );
@@ -735,11 +733,10 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 $payments,
                 function ($payment) use ($orderId) {
                     if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-                    $authorized = $payment['status'] == 'AUTHORIZED';
-                    $captured = $payment['status'] == 'CAPTURED';
+                    $authorizationPayment = array_key_exists('authorizationType', $payment);
                     $canCapture = $payment['canCapture'] == true;
                     $matchedRefNum = $payment['requestReferenceNumber'] == strval($orderId);
-                    return ($authorized || $captured) && $canCapture && $matchedRefNum;
+                    return $authorizationPayment && $canCapture && $matchedRefNum;
                 }
             )
         );
