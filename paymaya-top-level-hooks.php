@@ -186,3 +186,29 @@ add_action(
     'wp_ajax_capture_payment',
     'capture_payment'
 );
+
+function cynder_paymaya_catch_redirect() {
+    wc_get_logger()->log('info', 'Params ' . json_encode($_GET));
+
+    $orderId = $_GET['order'];
+
+    if (!isset($orderId)) {
+        /** Check order ID */
+    }
+
+    $order = wc_get_order($orderId);
+
+    $status = $_GET['status'];
+
+    if ($status === 'success') {
+        wp_redirect($order->get_checkout_order_received_url());
+    } else if ($status === 'failed') {
+        wc_add_notice('Payment failed. Please try again or try another payment method.', 'error');
+        wp_redirect($order->get_checkout_payment_url());
+    }
+}
+
+add_action(
+    'woocommerce_api_cynder_paymaya_catch_redirect',
+    'cynder_paymaya_catch_redirect'
+);

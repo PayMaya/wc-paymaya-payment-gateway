@@ -249,6 +249,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             return $items;
         }
 
+        $catchRedirectUrl = get_home_url() . '/?wc-api=cynder_paymaya_catch_redirect&order=' . $orderId;
+
         $payload = array(
             "totalAmount" => array(
                 "value" => intval($order->get_total()),
@@ -287,8 +289,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             ),
             "items" => array_reduce($order->get_items(), 'getItemPayload', []),
             "redirectUrl" => array(
-                "success" => $order->get_checkout_order_received_url(),
-                "failure" => $order->get_checkout_payment_url(),
+                "success" => $catchRedirectUrl . '&status=success',
+                "failure" => $catchRedirectUrl . '&status=failed',
                 "cancel" => $order->get_checkout_payment_url()
             ),
             "requestReferenceNumber" => strval($orderId)
