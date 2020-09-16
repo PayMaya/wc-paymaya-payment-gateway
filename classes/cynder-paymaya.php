@@ -409,15 +409,15 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 return true;
             }
         } else {
+            /** Enable for debugging purposes */
+            // wc_get_logger()->log('info', 'Amount entered ' . $amountValue);
+
             $authorizedPayments = array_values(
                 array_filter(
                     $payments,
                     function ($payment) {
                         if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-                        $authorized = $payment['status'] == 'AUTHORIZED';
-                        $captured = $payment['status'] == 'CAPTURED';
-                        $done = $payment['status'] == 'DONE';
-                        return $authorized || $captured || $done;
+                        return array_key_exists('authorizationType', $payment);
                     }
                 )
             );
@@ -454,11 +454,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                         $payments,
                         function ($payment) {
                             if (empty($payment['receiptNumber']) || empty($payment['requestReferenceNumber'])) return false;
-                            $success = $payment['status'] == 'PAYMENT_SUCCESS';
-                            $refunded = $payment['status'] == 'REFUNDED';
-                            $voided = $payment['status'] === 'VOIDED';
-
-                            return $success || $refunded || $voided;
+                            return array_key_exists('authorizationPayment', $payment);
                         }
                     )
                 );
@@ -471,105 +467,123 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 // wc_get_logger()->log('info', 'Sorted Payments ' . json_encode($capturedPayments));
 
                 if (!$sorted) {
-                    return WP_Error(400, 'Something went wrong with refunding the captured payments');
+                    return new WP_Error(400, 'Something went wrong with refunding the captured payments');
                 }
 
-                /**
-                 * New refunds are saved at this point and would just need processing.
-                 * 
-                 * To calculate the total refunds excluding the current refund value, filter it out.
-                 */
-                $refundedAmount = array_reduce($order->get_refunds(), function ($refunded, $refund) use ($amountValue, $reason) {
-                    $savedReason = $refund->get_reason();
-                    $savedAmount = $refund->get_amount();
+                $availableActions = array_reduce($capturedPayments, function ($actions, $capturedPayment) {
+                    $paymentId = $capturedPayment['id'];
+                    $paymentAmount = floatval($capturedPayment['amount']);
+                    $paymentCurrency = $capturedPayment['currency'];
 
-                    if ($savedReason === $reason && floatval($savedAmount) === $amountValue) return $refunded;
+                    if ($capturedPayment['canVoid']) {
+                        array_push(
+                            $actions,
+                            array(
+                                'action' => 'void',
+                                'paymentId' => $paymentId,
+                                'amount' => $paymentAmount,
+                                'currency' => $paymentCurrency,
+                            )
+                        );
+                    } else if ($capturedPayment['canRefund']) {
+                        $refunds = $this->client->getRefunds($paymentId);
+                        $amountToRefund = $paymentAmount;
 
-                    return $refunded + $savedAmount;
-                }, 0);
-                $remainingAmountToRefund = $authorizedFullAmount - $refundedAmount;
-                $paymentsForRefund = [];
+                        if (count($refunds) > 0) {
+                            $amountToRefund = array_reduce($refunds, function ($balance, $refund) {
+                                if ($refund['status'] !== 'SUCCESS') return $balance;
+                                if ($balance == 0) return 0;
 
-                /** Enable for debugging purposes */
-                // wc_get_logger()->log('info', 'Authorized amount: ' . $authorizedFullAmount);
-                // wc_get_logger()->log('info', 'Refunded amount: ' . $refundedAmount);
-                // wc_get_logger()->log('info', 'Remaining amount to refund: ' . $remainingAmountToRefund);
-                
-                if ($amountValue > $remainingAmountToRefund) {
-                    return new WP_Error(400, 'Invalid refund amount');
-                }
+                                return $balance - floatval($refund['amount']);
+                            }, $amountToRefund);
+                        }
 
-                do {
-                    $capturedPayment = array_shift($capturedPayments);
-                    $balance = $capturedPayment['amount'];
-
-                    if ($refundedAmount >= $balance) {
-                        $refundedAmount = $refundedAmount - $balance;
-                    } else {
-                        $balance = $balance - $refundedAmount;
-                        $refundedAmount = 0;
+                        if ($amountToRefund != 0) {
+                            array_push(
+                                $actions,
+                                array(
+                                    'action' => 'refund',
+                                    'paymentId' => $paymentId,
+                                    'amount' => $amountToRefund,
+                                    'currency' => $paymentCurrency
+                                )
+                            );
+                        }
                     }
 
-                    array_push(
-                        $paymentsForRefund,
-                        array(
-                            'id' => $capturedPayment['id'],
-                            'amount' => $balance,
-                            'currency' => $capturedPayment['currency']
-                        )
-                    );
-                } while($refundedAmount > 0 || count($capturedPayments) > 0);
+                    return $actions;
+                }, []);
 
                 /** Enable for debugging purposes */
-                // wc_get_logger()->log('info', 'Payments for refund ' . json_encode($paymentsForRefund));
+                // wc_get_logger()->log('info', 'Available Actions ' . json_encode($availableActions));
 
-                $paymentsToRefund = [];
+                $actionsToProcess = array();
 
                 do {
-                    $paymentForRefund = array_shift($paymentsForRefund);
-                    $balance = $paymentForRefund['amount'];
-                    $amountToRefund = 0;
+                    $availableAction = array_shift($availableActions);
+                    $actionType = $availableAction['action'];
+                    $actionAmount = floatval($availableAction['amount']);
 
-                    if ($amountValue >= $balance) {
-                        $amountToRefund = $balance;
-                        $amountValue = $amountValue - $balance;
-                    } else {
-                        $amountToRefund = $amountValue;
-                        $amountValue = 0;
+                    if ($actionType === 'void' && $actionAmount <= $amountValue) {
+                        array_push($actionsToProcess, $availableAction);
+                        $amountValue = $amountValue - $actionAmount;
+                    } else if ($actionType === 'void' && $amountValue != 0) {
+                        return new WP_Error(400, 'Partial voids are not allowed by the payment gateway');
+                    } else if ($actionType === 'refund' && $amountValue != 0) {
+                        $amountToRefund = $actionAmount;
+
+                        if ($amountValue >= $actionAmount) {
+                            $amountValue = $amountValue - $actionAmount;
+                        } else {
+                            $amountToRefund = $amountValue;
+                            $amountValue = 0;
+                        }
+
+                        $availableAction['amount'] = $amountToRefund;
+
+                        array_push($actionsToProcess, $availableAction);
                     }
+                } while ($amountValue != 0 || count($availableActions) > 0);
 
-                    array_push(
-                        $paymentsToRefund,
-                        array(
-                            'id' => $paymentForRefund['id'],
-                            'currency' => $paymentForRefund['currency'],
-                            'amount' => $amountToRefund
-                        )
-                    );
-                } while($amountValue > 0);
-                
-                wc_get_logger()->log('info', 'Refunding ' . json_encode($paymentsToRefund));
+                /** Enable for debugging purposes */
+                // wc_get_logger()->log('info', 'Actions to process ' . json_encode($actionsToProcess));
 
-                return $this->do_mass_refund($paymentsToRefund, $reason);
+                return $this->do_mass_refund($actionsToProcess, $reason);
             }
         }
 
         return new WP_Error(400, 'Payment cannot be refunded');
     }
 
-    function do_mass_refund($paymentsToRefund, $reason) {
-        foreach ($paymentsToRefund as $payment) {
-            $payload = json_encode(
-                array(
-                    'totalAmount' => array(
-                        'amount' => $payment['amount'],
-                        'currency' => $payment['currency'],
-                    ),
-                    'reason' => empty($reason) ? 'Merchant manually refunded' : $reason
-                )
+    function do_mass_refund($actions, $reason) {
+        foreach ($actions as $action) {
+            $actionType = $action['action'];
+            $defaultReason = 'Merchant manually '  . ($actionType === 'void' ? 'voided' : 'refunded');
+            $finalReason = empty($reason) ? $defaultReason : $reason;
+
+            $params = array(
+                $action['paymentId'],
             );
 
-            $response = $this->client->refundPayment($payment['id'], $payload);
+            if ($actionType === 'refund') {
+                $payload = json_encode(
+                    array(
+                        'totalAmount' => array(
+                            'amount' => $action['amount'],
+                            'currency' => $action['currency'],
+                        ),
+                        'reason' => $finalReason
+                    )
+                );
+
+                array_push($params, $payload);
+            } else {
+                array_push($params, $finalReason);
+            }
+
+            $functionKey = $actionType === 'void' ? 'voidPayment' : 'refundPayment';
+
+            $response = $this->client->$functionKey(...$params);
 
             if (array_key_exists("error", $response)) {
                 wc_get_logger()->log('error', $response['error']);
