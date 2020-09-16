@@ -103,6 +103,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             array($this, 'wc_captured_payments')
         );
 
+        add_action(
+            'woocommerce_admin_order_data_after_shipping_address',
+            array($this, 'wc_paymaya_webhook_labels')
+        );
+
         $this->client = new Cynder_PaymayaClient($this->sandbox === 'yes', $this->public_key, $this->secret_key);
     }
 
@@ -821,5 +826,20 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $pluginPath = plugin_dir_path(CYNDER_PAYMAYA_MAIN_FILE);
 
         include $pluginPath . '/views/manual-capture.php';
+    }
+
+    function wc_paymaya_webhook_labels($order) {
+        $orderMetadata = $order->get_meta_data();
+
+        $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+
+        if (!$authorizationTypeMetadataIndex) return;
+
+        $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
+        $authorizationType = $authorizationTypeMetadata->value;
+
+        if ($authorizationType === 'none') return;
+
+        echo '<h4>Paymaya Payment Processing Notice</h4><em>On capture completion of the total amount, expect delays on payment processing. Refresh page to check if payments have been processed and order status has been updated.</em>';
     }
 }
