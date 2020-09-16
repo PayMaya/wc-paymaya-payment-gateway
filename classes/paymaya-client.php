@@ -133,4 +133,14 @@ class Cynder_PaymayaClient {
 
         return $this->handleResponse($response);
     }
+
+    public function getRefunds($paymentId) {
+        $requestArgs = array(
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_get($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/refunds', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
 }

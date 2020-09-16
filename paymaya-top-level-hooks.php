@@ -16,6 +16,8 @@ function cynder_paymaya_scripts($hook) {
     $orderId = $_GET['post'];
     $order = wc_get_order($orderId);
 
+    if (!method_exists($order, 'get_meta_data')) return;
+
     $orderMetadata = $order->get_meta_data();
 
     $authorizationTypeMetadata = array_search($paymentGatewaId . '_authorization_type', array_column($orderMetadata, 'key'));
