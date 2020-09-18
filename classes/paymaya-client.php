@@ -1,7 +1,8 @@
 <?php
 
 class Cynder_PaymayaClient {
-    public function __construct($publicKey, $secretKey) {
+    public function __construct($isSandbox, $publicKey, $secretKey) {
+        $this->isSandbox = $isSandbox;
         $this->public_key = $publicKey;
         $this->secret_key = $secretKey;
     }
@@ -18,8 +19,6 @@ class Cynder_PaymayaClient {
     }
 
     private function handleResponse($response) {
-        wc_get_logger()->log('info', json_encode($response));
-
         if (is_wp_error($response)) {
             return array(
                 'error' => $response->get_error_message()
@@ -31,6 +30,10 @@ class Cynder_PaymayaClient {
         return $body;
     }
 
+    private function getBaseUrl() {
+        return $this->isSandbox ? CYNDER_PAYMAYA_BASE_SANDBOX_URL : CYNDER_PAYMAYA_BASE_PRODUCTION_URL;
+    }
+
     public function createCheckout($payload) {
         $requestArgs = array(
             'body' => $payload,
@@ -38,7 +41,7 @@ class Cynder_PaymayaClient {
             'headers' => $this->getHeaders(true)
         );
 
-        $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/checkouts', $requestArgs);
+        $response = wp_remote_post($this->getBaseUrl() . '/checkout/v1/checkouts', $requestArgs);
 
         return $this->handleResponse($response);
     }
@@ -48,9 +51,7 @@ class Cynder_PaymayaClient {
             'headers' => $this->getHeaders()
         );
 
-        wc_get_logger()->log('info', CYNDER_PAYMAYA_BASE_URL);
-
-        $response = wp_remote_get(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/webhooks', $requestArgs);
+        $response = wp_remote_get($this->getBaseUrl() . '/checkout/v1/webhooks', $requestArgs);
 
         return $this->handleResponse($response);
     }
@@ -61,7 +62,7 @@ class Cynder_PaymayaClient {
             'headers' => $this->getHeaders()
         );
 
-        $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/webhooks/' . $id, $requestArgs);
+        $response = wp_remote_post($this->getBaseUrl() . '/checkout/v1/webhooks/' . $id, $requestArgs);
 
         return $this->handleResponse($response);
     }
@@ -78,7 +79,67 @@ class Cynder_PaymayaClient {
             'headers' => $this->getHeaders()
         );
 
-        $response = wp_remote_post(CYNDER_PAYMAYA_BASE_URL . '/checkout/v1/webhooks', $requestArgs);
+        $response = wp_remote_post($this->getBaseUrl() . '/checkout/v1/webhooks', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function getPaymentViaRrn($orderId) {
+        $requestArgs = array(
+            'headers' => $this->getHeaders()
+        );
+
+        $response = wp_remote_get($this->getBaseUrl() . '/payments/v1/payment-rrns/' . $orderId, $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function refundPayment($paymentId, $payload) {
+        $requestArgs = array(
+            'body' => $payload,
+            'method' => 'POST',
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/refunds', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function voidPayment($paymentId, $reason) {
+        $requestArgs = array(
+            'body' => json_encode(
+                array(
+                    'reason' => $reason
+                )
+            ),
+            'method' => 'POST',
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/voids', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function capturePayment($paymentId, $payload) {
+        $requestArgs = array(
+            'body' => $payload,
+            'method' => 'POST',
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_post($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/capture', $requestArgs);
+
+        return $this->handleResponse($response);
+    }
+
+    public function getRefunds($paymentId) {
+        $requestArgs = array(
+            'headers' => $this->getHeaders(),
+        );
+
+        $response = wp_remote_get($this->getBaseUrl() . '/payments/v1/payments/' . $paymentId . '/refunds', $requestArgs);
 
         return $this->handleResponse($response);
     }
