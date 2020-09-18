@@ -5,11 +5,11 @@
  * Description: Take credit and debit card payments via Paymaya.
  * Author: CynderTech
  * Author URI: http://cynder.io
- * Version: 1.1.3
+ * Version: 1.0.0
  * Requires at least: 5.3.2
- * Tested up to: 5.4.1
+ * Tested up to: 5.5.1
  * WC requires at least: 3.9.3
- * WC tested up to: 4.1.1
+ * WC tested up to: 4.5.2
  *
  * @category Plugin
  * @package  CynderTech
