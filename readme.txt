@@ -1,16 +1,33 @@
-Copyright (c) 2020 PayMaya Philippines, Inc.
+=== Paymaya for WooCommerce ===
+Tags: payments, credit card
+Requires at least: 5.0
+Tested up to: 5.5
+Requires PHP: 5.6
+Stable tag: 1.0.0
+License: GPLv3
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-associated documentation files (the "Software"), to deal in the Software without restriction,
-including without limitation the rights to use, copy, modify, merge, publish, distribute,
-sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Accept payments in WooCommerce using Paymaya
 
-The above copyright notice and this permission notice shall be included in all copies or
-substantial portions of the Software.
+== Description ==
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Accept Visa & MasterCard payments directly on your Woocommerce store with the Paymaya.
+
+== Installation ==
+
+This gateway requires WooCommerce 3.9.3 and above.
+
+= Setup =
+
+<documentation here on how to set it up>
+
+= Updating =
+
+Automatic updates should work like a charm; as always though, ensure you backup your site just in case.
+
+== Changelog ==
+
+= 1.0.0 =
+*Release Date - 21 September 2020*
+
+Initial release
