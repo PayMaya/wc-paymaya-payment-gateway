@@ -240,6 +240,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 $items,
                 array(
                     "name" => $item->get_name(),
+                    "description" => $product->get_description(),
                     "quantity" => $item->get_quantity(),
                     "code" => strval($item->get_product_id()),
                     "amount" => array(
@@ -282,6 +283,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     "state" => $order->get_shipping_state(),
                     "zipCode" => $order->get_shipping_postcode(),
                     "countryCode" => $order->get_shipping_country(),
+                    "shippingType" => 'ST', // standard shipping is hard-coded for now
+                    "phone" => $order->get_billing_phone(),
+                    "email" => $order->get_billing_email()
                 ),
                 "billingAddress" => array(
                     "line1" => $order->get_billing_address_1(),
