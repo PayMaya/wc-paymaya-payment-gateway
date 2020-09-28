@@ -170,7 +170,6 @@ function Paymaya_Init_Gateway_class()
              */
             public function addGateways($methods)
             {
-                $methods = [];
                 $methods[] = 'Cynder_Paymaya_Gateway';
                 
                 return $methods;
