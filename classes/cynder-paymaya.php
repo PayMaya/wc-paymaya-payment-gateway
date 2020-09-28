@@ -649,8 +649,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         // wc_get_logger()->log('info', 'metadata ' . json_encode($authorizationTypeMetadata));
 
         $totalAmountData = $checkout['totalAmount'];
-        $totalAmount = $totalAmountData['details']['subtotal'];
-        $amountPaid = $totalAmountData['value'];
+        $subtotal = floatval($totalAmountData['details']['subtotal']);
+        $shippingFee = floatval($totalAmountData['details']['shippingFee']);
+        $discount = floatval($totalAmountData['details']['discount']);
+        $totalAmount = ($subtotal + $shippingFee) - $discount;
+        $amountPaid = floatval($totalAmountData['value']);
 
         /** Get txn ref number */
         $transactionRefNumber = $checkout['transactionReferenceNumber'];
