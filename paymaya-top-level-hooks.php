@@ -212,3 +212,10 @@ add_action(
     'woocommerce_api_cynder_paymaya_catch_redirect',
     'cynder_paymaya_catch_redirect'
 );
+
+function require_shipping_address2_checkout_field($fields) {
+    $fields['billing']['billing_address_2']['required'] = true;
+    return $fields;
+}
+
+add_filter('woocommerce_checkout_fields', 'require_shipping_address2_checkout_field');
