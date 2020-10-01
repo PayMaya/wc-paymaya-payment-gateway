@@ -1,9 +1,9 @@
 <?php
 
 /** Logger indicators */
-define('LOADING_ADMIN_JS_SCRIPTS_BLOCK', 'Loading Admin JS Scripts');
-define('CAPTURE_PAYMENT_BLOCK', 'Capture Payment');
-define('CATCH_REDIRECT_BLOCK', 'Paymaya Catch Redirect');
+define('PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK', 'Loading Admin JS Scripts');
+define('PAYMAYA_CAPTURE_PAYMENT_BLOCK', 'Capture Payment');
+define('PAYMAYA_CATCH_REDIRECT_BLOCK', 'Paymaya Catch Redirect');
 define('PAYMAYA_GET_PAYMENTS_EVENT', 'getPaymentViaRrn');
 define('PAYMAYA_CAPTURE_PAYMENT_EVENT', 'capturePayment');
 
@@ -41,12 +41,12 @@ function cynder_paymaya_scripts($hook) {
     $payments = $client->getPaymentViaRrn($orderId);
 
     if (array_key_exists('error', $payments)) {
-        wc_get_logger()->log('error', '[' . LOADING_ADMIN_JS_SCRIPTS_BLOCK . '][' . PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
+        wc_get_logger()->log('error', '[' . PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK . '][' . PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
         return;
     }
 
     if (count($payments) === 0) {
-        wc_get_logger()->log('error', '[' . LOADING_ADMIN_JS_SCRIPTS_BLOCK . '] No payments associated to order ID ' . $orderId);
+        wc_get_logger()->log('error', '[' . PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK . '] No payments associated to order ID ' . $orderId);
         return;
     }
 
@@ -63,12 +63,12 @@ function cynder_paymaya_scripts($hook) {
     );
 
     if (count($authorizedOrCapturedPayments) === 0) {
-        wc_get_logger()->log('info', '[' . LOADING_ADMIN_JS_SCRIPTS_BLOCK . '] No captured payments associated to order ID ' . $orderId);
+        wc_get_logger()->log('info', '[' . PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK . '] No captured payments associated to order ID ' . $orderId);
         return;
     }
 
     if (count($authorizedOrCapturedPayments) > 2) {
-        wc_get_logger()->log('error', '[' . LOADING_ADMIN_JS_SCRIPTS_BLOCK . '] Multiple captured payments associated to order ID ' . $orderId);
+        wc_get_logger()->log('error', '[' . PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK . '] Multiple captured payments associated to order ID ' . $orderId);
         return;
     }
 
@@ -104,14 +104,14 @@ function capture_payment() {
 
     if (!isset($captureAmount)) {
         return wp_send_json(
-            array('error' => '[' . CAPTURE_PAYMENT_BLOCK . '] Invalid capture amount'),
+            array('error' => '[' . PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Invalid capture amount'),
             400
         );
     }
 
     if (!isset($orderId)) {
         return wp_send_json(
-            array('error' => '[' . CAPTURE_PAYMENT_BLOCK . '] Invalid order ID'),
+            array('error' => '[' . PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Invalid order ID'),
             400
         );
     }
@@ -139,7 +139,7 @@ function capture_payment() {
     $payments = $client->getPaymentViaRrn($orderId);
 
     if (array_key_exists('error', $payments)) {
-        wc_get_logger()->log('error', '[' . CAPTURE_PAYMENT_BLOCK . '][' . PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
+        wc_get_logger()->log('error', '[' . PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
         return wp_send_json(
             array('error' => 'An error occured. If issue persists, contact Paymaya support.'),
             400
@@ -187,7 +187,7 @@ function capture_payment() {
     // wc_get_logger()->log('info', 'Response ' . json_encode($response));
 
     if (array_key_exists("error", $response)) {
-        wc_get_logger()->log('error', '[' . CAPTURE_PAYMENT_BLOCK . '][' . PAYMAYA_CAPTURE_PAYMENT_EVENT . '] ' . $response['error']);
+        wc_get_logger()->log('error', '[' . PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . PAYMAYA_CAPTURE_PAYMENT_EVENT . '] ' . $response['error']);
 
         return wp_send_json(
             array('error' => 'An error occured. If issue persists, contact Paymaya support.'),
@@ -211,7 +211,7 @@ function cynder_paymaya_catch_redirect() {
 
     if (!isset($orderId)) {
         /** Check order ID */
-        wc_get_logger()->log('error', '[' . CATCH_REDIRECT_BLOCK . '] No order found with ID ' . $orderId);
+        wc_get_logger()->log('error', '[' . PAYMAYA_CATCH_REDIRECT_BLOCK . '] No order found with ID ' . $orderId);
         wc_add_notice('Something went wrong, please contact Paymaya support.', 'error');
         wp_redirect(get_home_url());
     }
