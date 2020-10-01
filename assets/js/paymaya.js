@@ -87,7 +87,7 @@ jQuery(document).ready(function ($) {
 
             if (window.confirm('Are you sure you want to capture this payment?')) {
                 const data = {
-                    action: 'capture_payment',
+                    action: 'cynder_paymaya_capture_payment',
                     order_id: orderId,
                     capture_amount: Number(captureAmount),
                 };
