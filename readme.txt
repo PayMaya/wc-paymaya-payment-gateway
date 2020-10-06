@@ -1,4 +1,4 @@
-=== Paymaya for WooCommerce ===
+=== PayMaya WooCommerce Plugin ===
 Tags: payments, credit card
 Requires at least: 5.0
 Tested up to: 5.5
@@ -11,12 +11,24 @@ Accept payments in WooCommerce using Paymaya
 
 == Description ==
 
-Accept Visa & MasterCard payments directly on your Woocommerce store with the Paymaya.
+= Give your customers a better online checkout experience =
 
-Features:
-* Securely process credit card payments using Paymaya Checkout
-* Voiding and refunding functions, including partial refunds
-* Manual payment captures
+With PayMaya Checkout, your website or app can directly accept credit and debit cards, e-wallet, and other emerging payment solutions.
+
+* Mastercard
+* Visa
+* JCB
+* WeChat Pay
+* Pay With PayMaya
+
+= Features =
+* Payments via PayMaya Checkout
+* Full 3DS Support and PCI-DSS Compliant
+* Checkout page customizations
+* Voids and Refunds
+* Straight purchase or Authorization & Capture
+
+**Don't have an account yet? [Click here to get started](https://enterprise.paymaya.com/solutions/plugins/woocommerce)**
 
 == Installation ==
 
@@ -42,4 +54,4 @@ Automatic updates should work like a charm; as always though, ensure you backup 
 = 1.0.0 =
 *Release Date - 21 September 2020*
 
-Initial release
+* Initial release
