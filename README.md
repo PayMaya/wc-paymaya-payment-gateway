@@ -18,4 +18,4 @@ With PayMaya Checkout, your website or app can directly accept credit and debit 
 * Voids and Refunds
 * Straight purchase or Authorization & Capture
 
-### Don't have an account yet? [Click here to get started](https://enterprise.paymaya.com/solutions/checkout)
+### Don't have an account yet? [Click here to get started](https://enterprise.paymaya.com/solutions/plugins/woocommerce)
