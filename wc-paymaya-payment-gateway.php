@@ -3,8 +3,8 @@
  * PHP version 7
  * Plugin Name: Payments via Paymaya for WooCommerce
  * Description: Take credit and debit card payments via Paymaya.
- * Author: CynderTech
- * Author URI: http://cynder.io
+ * Author: PayMaya
+ * Author URI: https://www.paymaya.com
  * Version: 1.0.0
  * Requires at least: 5.3.2
  * Tested up to: 5.5.1
