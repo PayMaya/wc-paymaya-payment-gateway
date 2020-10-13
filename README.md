@@ -4,7 +4,7 @@ This is the repository of the official Paymaya WooCommerce payment gateway plugi
 
 ## Give your customers a better online checkout experience
 
-Setup your plugin with the [guide](https://s3-us-west-2.amazonaws.com/developers.paymaya.com.pg/plugins/WooCommerce+Plugin+Installation+Guide+2.0.pdf)
+Installation guide can be found [here](https://s3-us-west-2.amazonaws.com/developers.paymaya.com.pg/plugins/WooCommerce+Plugin+Installation+Guide+2.0.pdf)
 
 With PayMaya Checkout, your website or app can directly accept credit and debit cards, e-wallet, and other emerging payment solutions.
 * Mastercard
