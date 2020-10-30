@@ -24,7 +24,8 @@ class Cynder_PaymayaClient {
 
         $baseHeaders =  array(
             'Authorization' => 'Basic ' . base64_encode($key . ':'),
-            'Content-Type' => 'application/json'
+            'Content-Type' => 'application/json',
+            'x-paymaya-sdk' => 'woocommerce-v2.0.1'
         );
 
         return array_merge($baseHeaders, $additionalHeaders);
