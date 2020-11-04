@@ -785,9 +785,10 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         /** Enable for debugging purposes */
         // wc_get_logger()->log('info', 'Metadata ' . json_encode($orderMetadata));
 
-        $authorizationTypeMetadata = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+        $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
+        $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
 
-        if ($authorizationTypeMetadata['value'] === 'none') return;
+        if ($authorizationTypeMetadata->value === 'none') return;
 
         $authorizedPayments = array_values(
             array_filter(
