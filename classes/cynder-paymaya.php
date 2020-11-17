@@ -255,10 +255,10 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     "quantity" => $item->get_quantity(),
                     "code" => strval($item->get_product_id()),
                     "amount" => array(
-                        "value" => $product->get_price()
+                        "value" => floatval($product->get_price())
                     ),
                     "totalAmount" => array(
-                        "value" => $item->get_subtotal()
+                        "value" => floatval($item->get_subtotal())
                     )
                 )
             );
@@ -270,12 +270,12 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $payload = array(
             "totalAmount" => array(
-                "value" => intval($order->get_total()),
+                "value" => floatval($order->get_total()),
                 "currency" => $order->get_currency(),
                 "details" => array(
-                    "discount" => intval($order->get_discount_total()),
-                    "shippingFee" => intval($order->get_shipping_total()),
-                    "subtotal" => $order->get_subtotal()
+                    "discount" => floatval($order->get_discount_total()),
+                    "shippingFee" => floatval($order->get_shipping_total()),
+                    "subtotal" => floatval($order->get_subtotal())
                 )
             ),
             "buyer" => array(
