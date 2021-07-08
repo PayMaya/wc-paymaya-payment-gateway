@@ -667,10 +667,6 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         // wc_get_logger()->log('info', 'metadata ' . json_encode($authorizationTypeMetadata));
 
         $totalAmountData = $checkout['totalAmount'];
-        $subtotal = floatval($totalAmountData['details']['subtotal']);
-        $shippingFee = floatval($totalAmountData['details']['shippingFee']);
-        $discount = floatval($totalAmountData['details']['discount']);
-        $totalAmount = ($subtotal + $shippingFee) - $discount;
         $amountPaid = floatval($totalAmountData['value']);
 
         /** Get txn ref number */
@@ -680,7 +676,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             /** For non-manual capture payments: */
 
             /** With correct data based on assumptions */
-            if ($totalAmount === $amountPaid) {
+            if (abs($amountPaid-floatval($order->get_total())) < PHP_FLOAT_EPSILON) {
                 $order->payment_complete($transactionRefNumber);
             } else {
                 wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Amount mismatch. Open payment details on Paymaya dashboard with txn ref number ' . $transactionRefNumber);
