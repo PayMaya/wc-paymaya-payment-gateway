@@ -676,7 +676,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             /** For non-manual capture payments: */
 
             /** With correct data based on assumptions */
-            if ($amountPaid === floatval($order->get_total())) {
+            if (abs($amountPaid-floatval($order->get_total())) < PHP_FLOAT_EPSILON) {
                 $order->payment_complete($transactionRefNumber);
             } else {
                 wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Amount mismatch. Open payment details on Paymaya dashboard with txn ref number ' . $transactionRefNumber);
