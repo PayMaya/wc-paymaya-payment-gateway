@@ -244,28 +244,6 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     public function process_payment($orderId) {
         $order = wc_get_order($orderId);
 
-        function getItemPayload($items, $item) {
-            $product = $item->get_product();
-
-            array_push(
-                $items,
-                array(
-                    "name" => $item->get_name(),
-                    "description" => $product->get_description(),
-                    "quantity" => $item->get_quantity(),
-                    "code" => strval($item->get_product_id()),
-                    "amount" => array(
-                        "value" => floatval($product->get_price())
-                    ),
-                    "totalAmount" => array(
-                        "value" => floatval($item->get_subtotal())
-                    )
-                )
-            );
-
-            return $items;
-        }
-
         $catchRedirectUrl = get_home_url() . '/?wc-api=cynder_paymaya_catch_redirect&order=' . $orderId;
 
         $payload = array(
@@ -307,7 +285,20 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     "countryCode" => $order->get_billing_country()
                 )
             ),
-            "items" => array_reduce($order->get_items(), 'getItemPayload', []),
+            "items" => array(
+                array(
+                    "name" => 'WooCommerce Purchase',
+                    "description" => 'WooCommerce Purchase',
+                    "quantity" => 1,
+                    "code" => '001',
+                    "amount" => array(
+                        "value" => floatval($order->get_total())
+                    ),
+                    "totalAmount" => array(
+                        "value" => floatval($order->get_total())
+                    )
+                )
+            ),
             "redirectUrl" => array(
                 "success" => $catchRedirectUrl . '&status=success',
                 "failure" => $catchRedirectUrl . '&status=failed',
@@ -331,7 +322,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $response = $this->client->createCheckout($encodedPayload);
 
         /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Response ' . json_encode($response));
+        // wc_get_logger()->log('info', 'Response ' . wc_print_r($response, true));
 
         if (array_key_exists("error", $response)) {
             wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_CREATE_CHECKOUT_EVENT . '] ' . json_encode($response['error']));
@@ -676,10 +667,6 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         // wc_get_logger()->log('info', 'metadata ' . json_encode($authorizationTypeMetadata));
 
         $totalAmountData = $checkout['totalAmount'];
-        $subtotal = floatval($totalAmountData['details']['subtotal']);
-        $shippingFee = floatval($totalAmountData['details']['shippingFee']);
-        $discount = floatval($totalAmountData['details']['discount']);
-        $totalAmount = ($subtotal + $shippingFee) - $discount;
         $amountPaid = floatval($totalAmountData['value']);
 
         /** Get txn ref number */
@@ -689,7 +676,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             /** For non-manual capture payments: */
 
             /** With correct data based on assumptions */
-            if ($totalAmount === $amountPaid) {
+            if (abs($amountPaid-floatval($order->get_total())) < PHP_FLOAT_EPSILON) {
                 $order->payment_complete($transactionRefNumber);
             } else {
                 wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Amount mismatch. Open payment details on Paymaya dashboard with txn ref number ' . $transactionRefNumber);
