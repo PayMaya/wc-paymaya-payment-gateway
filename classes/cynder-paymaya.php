@@ -246,6 +246,42 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $catchRedirectUrl = get_home_url() . '/?wc-api=cynder_paymaya_catch_redirect&order=' . $orderId;
 
+        $shippingFirstName = $order->get_shipping_first_name();
+        $shippingLastName = $order->get_shipping_last_name();
+        $shippingLine1 = $order->get_shipping_address_1();
+        $shippingLine2 = $order->get_shipping_address_2();
+        $shippingCity = $order->get_shipping_city();
+        $shippingZipCode = $order->get_shipping_postcode();
+        $shippingCountry = $order->get_shipping_country();
+
+        if (empty($shippingCountry)) {
+            $shippingCountry = $order->get_billing_country();
+        }
+
+        if (empty($shippingFirstName)) {
+            $shippingFirstName = $order->get_billing_first_name();
+        }
+
+        if (empty($shippingLastName)) {
+            $shippingLastName = $order->get_billing_last_name();
+        }
+
+        if (empty($shippingLine1)) {
+            $shippingLine1 = $order->get_billing_address_1();
+        }
+
+        if (empty($shippingLine2)) {
+            $shippingLine2 = $order->get_billing_address_2();
+        }
+
+        if (empty($shippingCity)) {
+            $shippingCity = $order->get_billing_city();
+        }
+
+        if (empty($shippingZipCode)) {
+            $shippingZipCode = $order->get_billing_postcode();
+        }
+
         $payload = array(
             "totalAmount" => array(
                 "value" => floatval($order->get_total()),
@@ -264,14 +300,14 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     "email" => $order->get_billing_email()
                 ),
                 "shippingAddress" => array(
-                    "firstName" => $order->get_shipping_first_name(),
-                    "lastName" => $order->get_shipping_last_name(),
-                    "line1" => $order->get_shipping_address_1(),
-                    "line2" => $order->get_shipping_address_2(),
-                    "city" => $order->get_shipping_city(),
+                    "firstName" => $shippingFirstName,
+                    "lastName" => $shippingLastName,
+                    "line1" => $shippingLine1,
+                    "line2" => $shippingLine2,
+                    "city" => $shippingCity,
                     "state" => $order->get_shipping_state(),
-                    "zipCode" => $order->get_shipping_postcode(),
-                    "countryCode" => $order->get_shipping_country(),
+                    "zipCode" => $shippingZipCode,
+                    "countryCode" => $shippingCountry,
                     "shippingType" => 'ST', // standard shipping is hard-coded for now
                     "phone" => $order->get_billing_phone(),
                     "email" => $order->get_billing_email()
