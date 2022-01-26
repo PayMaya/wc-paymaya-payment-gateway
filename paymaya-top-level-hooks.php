@@ -23,6 +23,7 @@ function cynder_paymaya_scripts($hook) {
     $orderId = sanitize_key($_GET['post']);
     $order = wc_get_order($orderId);
 
+    if (empty($order)) return;
     if (!method_exists($order, 'get_meta_data')) return;
 
     $orderMetadata = $order->get_meta_data();
