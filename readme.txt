@@ -1,9 +1,9 @@
 === PayMaya WooCommerce Plugin ===
 Tags: payments, credit card
 Requires at least: 5.0
-Tested up to: 5.5
+Tested up to: 5.9
 Requires PHP: 5.6
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -51,13 +51,19 @@ Automatic updates should work like a charm; as always though, ensure you backup 
 
 == Changelog ==
 
+= 1.0.6 =
+*Release Date - January 28, 2022*
+
+* Fix admin scripts loading issue with non-existent order ID
+* Tested compatibility up to WP 5.9 and WooCommerce 6.1.1
+
 = 1.0.5 =
-*Release Date - December 17, 2021
+*Release Date - December 17, 2021*
 
 * Fix issue with shipping detail requirements
 
 = 1.0.4 =
-*Release Date - September 27, 2021
+*Release Date - September 27, 2021*
 
 * Added error logger for PayMaya API errors
 
