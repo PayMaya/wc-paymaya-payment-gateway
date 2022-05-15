@@ -70,8 +70,8 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     {
         $this->id = 'paymaya';
         $this->has_fields = true;
-        $this->method_title = 'Payments via Paymaya';
-        $this->method_description = 'Secure online payments via Paymaya';
+        $this->method_title = 'Payments via Maya';
+        $this->method_description = 'Secure online payments via Maya';
 
         $this->supports = array(
             'products',
@@ -134,7 +134,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $this->form_fields = array(
             'enabled' => array(
                 'title'       => 'Enable/Disable',
-                'label'       => 'Enable Paymaya Gateway',
+                'label'       => 'Enable Maya Gateway',
                 'type'        => 'checkbox',
                 'description' => '',
                 'default'     => 'no'
