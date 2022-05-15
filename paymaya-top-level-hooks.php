@@ -192,7 +192,7 @@ function cynder_paymaya_capture_payment() {
         wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_EVENT . '] ' . $response['error']);
 
         return wp_send_json(
-            array('error' => 'An error occured. If issue persists, contact Paymaya support.'),
+            array('error' => 'An error occured. If issue persists, contact Maya support.'),
             400
         );
     }
@@ -214,7 +214,7 @@ function cynder_paymaya_catch_redirect() {
     if (!isset($orderId)) {
         /** Check order ID */
         wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CATCH_REDIRECT_BLOCK . '] No order found with ID ' . $orderId);
-        wc_add_notice('Something went wrong, please contact Paymaya support.', 'error');
+        wc_add_notice('Something went wrong, please contact Maya support.', 'error');
         wp_redirect(get_home_url());
     }
 
