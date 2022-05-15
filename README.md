@@ -1,20 +1,20 @@
-# PayMaya WooCommerce Plugin
+# Maya Business Plugin
 
-This is the repository of the official Paymaya WooCommerce payment gateway plugin
+This is the repository of the official Maya Business payment gateway plugin
 
 ## Give your customers a better online checkout experience
 
 Installation guide can be found [here](https://s3-us-west-2.amazonaws.com/developers.paymaya.com.pg/plugins/WooCommerce+Plugin+Installation+Guide+2.0.pdf)
 
-With PayMaya Checkout, your website or app can directly accept credit and debit cards, e-wallet, and other emerging payment solutions.
+With Maya Checkout, your website or app can directly accept credit and debit cards, e-wallet, and other emerging payment solutions.
 * Mastercard
 * Visa
 * JCB
 * WeChat Pay
-* Pay With PayMaya
+* Pay With Maya
 
 ### Features
-* Payments via PayMaya Checkout
+* Payments via Maya Checkout
 * Full 3DS Support and PCI-DSS Compliant
 * Checkout page customizations
 * Voids and Refunds

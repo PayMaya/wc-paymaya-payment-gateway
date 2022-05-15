@@ -144,7 +144,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'title'       => 'Title',
                 'description' => 'This controls the title that ' .
                                  'the user sees during checkout.',
-                'default'     => 'Payments via Paymaya',
+                'default'     => 'Payments via Maya',
                 'desc_tip'    => true,
             ),
             'description' => array(
@@ -152,7 +152,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'type'        => 'textarea',
                 'description' => 'This controls the description that ' .
                                  'the user sees during checkout.',
-                'default'     => 'Secure online payments via Paymaya',
+                'default'     => 'Secure online payments via Maya',
             ),
             'manual_capture' => array(
                 'title' => 'Manual Capture',
@@ -169,12 +169,12 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             'environment_title' => array(
                 'title' => 'API Keys',
                 'type' => 'title',
-                'description' => 'API Keys are used to authenticate yourself to Paymaya checkout.<br/><strong>This plugin will not work without these keys</strong>.<br/>To obtain a set of keys, contact Paymaya directly.'
+                'description' => 'API Keys are used to authenticate yourself to Maya checkout.<br/><strong>This plugin will not work without these keys</strong>.<br/>To obtain a set of keys, contact Maya directly.'
             ),
             'sandbox' => array(
                 'title' => 'Sandbox Mode',
                 'type' => 'checkbox',
-                'description' => 'Enabled sandbox mode to test payment transactions with Paymaya.<br/>A set of test API keys and card numbers are available <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Sandbox-Test-Credentials">here</a>.'
+                'description' => 'Enabled sandbox mode to test payment transactions with Maya.<br/>A set of test API keys and card numbers are available <a target="_blank" href="https://developers.maya.ph/docs/sandbox-credentials-and-cards-guide">here</a>.'
             ),
             'public_key' => array(
                 'title'       => 'Public Key',
@@ -187,7 +187,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             'webhook_title' => array(
                 'title' => 'Webhooks',
                 'type' => 'title',
-                'description' => 'The following fields are used by Paymaya to properly process order statuses after payments.<br/><strong>DON\'T CHANGE THIS UNLESS YOU KNOW WHAT YOU\'RE DOING</strong>.<br/>For more information, refer <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Webhooks">here</a>.'
+                'description' => 'The following fields are used by Maya to properly process order statuses after payments.<br/><strong>DON\'T CHANGE THIS UNLESS YOU KNOW WHAT YOU\'RE DOING</strong>.<br/>For more information, refer <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Webhooks">here</a>.'
             ),
             'webhook_success' => array(
                 'title' => 'Webhook Success URL',
@@ -651,7 +651,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             if (array_key_exists("error", $response)) {
                 $errorIdentifier = $actionType === 'void' ? CYNDER_PAYMAYA_VOID_PAYMENT_EVENT : CYNDER_PAYMAYA_REFUND_PAYMENT_EVENT;
                 wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_MASS_REFUND_PAYMENT_BLOCK . '][' . $errorIdentifier . '] ' . $response['error']);
-                return new WP_Error(400, 'Something went wrong with the refund. Check your PayMaya merchant dashboard for actual balances.');
+                return new WP_Error(400, 'Something went wrong with the refund. Check your Maya merchant dashboard for actual balances.');
             }
         }
 
@@ -715,7 +715,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             if (abs($amountPaid-floatval($order->get_total())) < PHP_FLOAT_EPSILON) {
                 $order->payment_complete($transactionRefNumber);
             } else {
-                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Amount mismatch. Open payment details on Paymaya dashboard with txn ref number ' . $transactionRefNumber);
+                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Amount mismatch. Open payment details on Maya dashboard with txn ref number ' . $transactionRefNumber);
             }
         } else {
             /** For manual capture payments */
@@ -904,6 +904,6 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         if ($authorizationType === 'none') return;
 
-        echo '<h4>Paymaya Payment Processing Notice</h4><em>On capture completion of the total amount, expect delays on payment processing. Refresh page to check if payments have been processed and order status has been updated.</em>';
+        echo '<h4>Maya Payment Processing Notice</h4><em>On capture completion of the total amount, expect delays on payment processing. Refresh page to check if payments have been processed and order status has been updated.</em>';
     }
 }
