@@ -3,7 +3,7 @@ Tags: payments, credit card
 Requires at least: 5.0
 Tested up to: 5.9
 Requires PHP: 5.6
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -38,7 +38,7 @@ This gateway requires WooCommerce 3.9.3 and above.
 
 1. After installation and activation, go to WooCommerce menu on the left sidebar of your WordPress admin dashboard.
 2. Go to Settings, then go to Payments tab.
-3. You should see a **Payments via Paymaya** item. Click on the Manage/Set up button.
+3. You should see a **Payments via Maya** item. Click on the Manage/Set up button.
 4. Enter your public and private API keys in the **API Keys** section.
 
 = Sandbox Mode =
@@ -50,6 +50,12 @@ To test payments, enable **Sandbox Mode**. This will let you transact test payme
 Automatic updates should work like a charm; as always though, ensure you backup your site just in case.
 
 == Changelog ==
+
+= 1.0.7 =
+*Release Date - May 16, 2022*
+
+* Rebrand PayMaya to Maya
+* Tested compatibility for WC 6.5.1
 
 = 1.0.6 =
 *Release Date - January 28, 2022*
