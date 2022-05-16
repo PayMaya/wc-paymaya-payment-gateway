@@ -1,28 +1,28 @@
-=== PayMaya WooCommerce Plugin ===
+=== Maya Business Plugin ===
 Tags: payments, credit card
 Requires at least: 5.0
 Tested up to: 5.9
 Requires PHP: 5.6
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Accept payments in WooCommerce using Paymaya
+Accept payments in WooCommerce using Maya
 
 == Description ==
 
 = Give your customers a better online checkout experience =
 
-With PayMaya Checkout, your website or app can directly accept credit and debit cards, e-wallet, and other emerging payment solutions.
+With Maya Checkout, your website or app can directly accept credit and debit cards, e-wallet, and other emerging payment solutions.
 
 * Mastercard
 * Visa
 * JCB
 * WeChat Pay
-* Pay With PayMaya
+* Pay With Maya
 
 = Features =
-* Payments via PayMaya Checkout
+* Payments via Maya Checkout
 * Full 3DS Support and PCI-DSS Compliant
 * Checkout page customizations
 * Voids and Refunds
@@ -38,7 +38,7 @@ This gateway requires WooCommerce 3.9.3 and above.
 
 1. After installation and activation, go to WooCommerce menu on the left sidebar of your WordPress admin dashboard.
 2. Go to Settings, then go to Payments tab.
-3. You should see a **Payments via Paymaya** item. Click on the Manage/Set up button.
+3. You should see a **Payments via Maya** item. Click on the Manage/Set up button.
 4. Enter your public and private API keys in the **API Keys** section.
 
 = Sandbox Mode =
@@ -50,6 +50,12 @@ To test payments, enable **Sandbox Mode**. This will let you transact test payme
 Automatic updates should work like a charm; as always though, ensure you backup your site just in case.
 
 == Changelog ==
+
+= 1.0.7 =
+*Release Date - May 16, 2022*
+
+* Rebrand PayMaya to Maya
+* Tested compatibility for WC 6.5.1
 
 = 1.0.6 =
 *Release Date - January 28, 2022*
@@ -65,7 +71,7 @@ Automatic updates should work like a charm; as always though, ensure you backup 
 = 1.0.4 =
 *Release Date - September 27, 2021*
 
-* Added error logger for PayMaya API errors
+* Added error logger for Maya API errors
 
 = 1.0.3 =
 *Release Date - 3 August 2021*
