@@ -1,15 +1,15 @@
 <?php
 /**
  * PHP version 7
- * Plugin Name: Payments via Paymaya for WooCommerce
- * Description: Take credit and debit card payments via Paymaya.
+ * Plugin Name: Payments via Maya for WooCommerce
+ * Description: Take credit and debit card payments via Maya.
  * Author: PayMaya
  * Author URI: https://www.paymaya.com
- * Version: 1.0.6
+ * Version: 1.0.7
  * Requires at least: 5.3.2
- * Tested up to: 5.9.0
+ * Tested up to: 5.9.3
  * WC requires at least: 3.9.3
- * WC tested up to: 6.1.1
+ * WC tested up to: 6.5.1
  *
  * @category Plugin
  * @package  CynderTech
@@ -32,7 +32,7 @@ function Paymaya_Woocommerce_Missing_Cynder_notice()
     /* translators: 1. URL link. */
     echo '<div class="error"><p><strong>' . sprintf(
         esc_html__(
-            'Paymaya requires WooCommerce to be '
+            'Maya requires WooCommerce to be '
             . 'installed and active. You can download %s here.',
             'woocommerce-gateway-paymaya'
         ),
@@ -53,7 +53,7 @@ function Paymaya_Init_Gateway_class()
     }
 
     define('CYNDER_PAYMAYA_MAIN_FILE', __FILE__);
-    define('CYNDER_PAYMAYA_VERSION', '1.0.6');
+    define('CYNDER_PAYMAYA_VERSION', '1.0.7');
     define('CYNDER_PAYMAYA_BASE_SANDBOX_URL',  'https://pg-sandbox.paymaya.com');
     define('CYNDER_PAYMAYA_BASE_PRODUCTION_URL',  'https://pg.paymaya.com');
     define(
@@ -190,7 +190,7 @@ function Paymaya_Init_Gateway_class()
 
                 $gatewayName = 'woocommerce-gateway-paymaya';
                 $sections['paymaya'] = __(
-                    'Payments via Paymaya',
+                    'Payments via Maya',
                     $gatewayName
                 );
 
