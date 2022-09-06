@@ -117,7 +117,21 @@ class Cynder_PaymayaClient {
 
         $response = wp_remote_get($this->getBaseUrl() . '/payments/v1/payment-rrns/' . $orderId, $requestArgs);
 
-        return $this->handleResponse($response);
+        $decodedResponse = $this->handleResponse($response);
+
+        if (array_key_exists('error', $decodedResponse) && is_array($decodedResponse['error'])) {
+            if (array_key_exists('message', $decodedResponse['error'])) {
+                return array(
+                    'error' => $decodedResponse['error']['message']
+                );
+            } else {
+                return array(
+                    'error' => 'Something went wrong when requesting payments via RRN. Please check response. ' . wc_print_r($decodedResponse['error']),
+                );
+            }
+        }
+
+        return $decodedResponse;
     }
 
     /** https://hackmd.io/@paymaya-pg/Checkout#Refund-by-ID---POST-httpspg-sandboxpaymayacompaymentsv1paymentspaymentIdrefunds */
