@@ -91,6 +91,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $this->public_key = $this->get_option('public_key');
         $this->webhook_success = $this->get_option('webhook_success');
         $this->webhook_failure = $this->get_option('webhook_failure');
+        
+        $debugMode = $this->get_option('debug_mode');
+        $this->debug_mode = !empty($debugMode) && $debugMode === 'yes';
 
         add_action(
             'woocommerce_update_options_payment_gateways_' . $this->id,
@@ -198,7 +201,13 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'title' => 'Webhook Failure URL',
                 'type' => 'text',
                 'default' => get_home_url() . '?wc-api=cynder_paymaya'
-            )
+            ),
+            'debug_mode' => array(
+                'title' => 'Debug Mode',
+                'type' => 'checkbox', 
+                'description' => 'Enables debug mode. Produces more verbose logs for most of the plugin processes. Helpful when coordinating with customer support.',
+                'default' => 'no',
+            ),
         );
     }
 
@@ -210,6 +219,10 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         if (isset($this->enabled) && $this->enabled === 'yes' && isset($this->public_key) && isset($this->secret_key)) {
             $webhooks = $this->client->retrieveWebhooks();
+
+            if ($this->debug_mode) {
+                wc_get_logger()->log('info', '[Registering Webhooks] ' . wc_print_r($webhooks, true));
+            }
 
             if (array_key_exists("error", $webhooks)) {
                 $this->add_error($webhooks["error"]);
@@ -343,8 +356,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             "requestReferenceNumber" => strval($orderId)
         );
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Manual capture authorization type ' . $this->manual_capture);
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK . '] Manual capture authorization type ' . $this->manual_capture);
+        }
 
         if ($this->manual_capture !== "none") {
             $payload['authorizationType'] = strtoupper($this->manual_capture);
@@ -352,13 +366,15 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $encodedPayload = json_encode($payload);
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Payload' . $encodedPayload);
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK . '] Payload' . wc_print_r($encodedPayload, true));
+        }
 
         $response = $this->client->createCheckout($encodedPayload);
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Response ' . wc_print_r($response, true));
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_CREATE_CHECKOUT_EVENT . '] Create Checkout Response ' . wc_print_r($response, true));
+        }
 
         if (array_key_exists("error", $response)) {
             wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_CREATE_CHECKOUT_EVENT . '] ' . json_encode($response['error']));
@@ -380,25 +396,24 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $payments = $this->client->getPaymentViaRrn($orderId);
 
         if (array_key_exists("error", $payments)) {
-            wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
+            wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK . '][' . CYNDER_PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
             return false;
         }
 
         $amountValue = floatval($amount);
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
-
-        /** Enable for debugging */
-        // wc_get_logger()->log('info', 'Order ID ' . $orderId);
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK . '][' . CYNDER_PAYMAYA_GET_PAYMENTS_EVENT . '] Payments via RRN ' . wc_print_r($payments, true));
+        }
 
         $orderMetadata = $order->get_meta_data();
 
         $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
         $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'metadata ' . json_encode($authorizationTypeMetadata));
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK . '] Authorization Metadata ' . wc_print_r($authorizationTypeMetadata, true));
+        }
 
         if ($authorizationTypeMetadata->value === 'none') {
             $successfulPayments = array_values(
@@ -418,8 +433,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         
             $successfulPayment = $successfulPayments[0];
     
-            /** Enable for debugging purposes */
-            // wc_get_logger()->log('info', 'PAYMENT ' . json_encode($successfulPayment));
+            if ($this->debug_mode) {
+                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK . '] Successful Payment ' . wc_print_r($successfulPayment, true));
+            }
     
             if (!$successfulPayment) {
                 return new WP_Error(404, 'Can\'t find payment record to refund in Paymaya');
@@ -465,8 +481,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 return true;
             }
         } else {
-            /** Enable for debugging purposes */
-            // wc_get_logger()->log('info', 'Amount entered ' . $amountValue);
+            if ($this->debug_mode) {
+                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK . '] Amount entered ' . $amountValue);
+            }
 
             $authorizedPayments = array_values(
                 array_filter(
@@ -526,9 +543,6 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     return strtotime($a['createdAt']) - strtotime($b['createdAt']);
                 });
 
-                /** Enable for debugging purposes */
-                // wc_get_logger()->log('info', 'Sorted Payments ' . json_encode($capturedPayments));
-
                 if (!$sorted) {
                     return new WP_Error(400, 'Something went wrong with refunding the captured payments');
                 }
@@ -577,8 +591,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     return $actions;
                 }, []);
 
-                /** Enable for debugging purposes */
-                // wc_get_logger()->log('info', 'Available Actions ' . json_encode($availableActions));
+                if ($this->debug_mode) {
+                    wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK . '] Available Actions ' . wc_print_r($availableActions, true));
+                }
 
                 $actionsToProcess = array();
 
@@ -608,8 +623,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                     }
                 } while ($amountValue != 0 || count($availableActions) > 0);
 
-                /** Enable for debugging purposes */
-                // wc_get_logger()->log('info', 'Actions to process ' . json_encode($actionsToProcess));
+                if ($this->debug_mode) {
+                    wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK . '] Actions to process ' . wc_print_r($actionsToProcess, true));
+                }
 
                 return $this->do_mass_refund($actionsToProcess, $reason);
             }
@@ -672,8 +688,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $requestBody = file_get_contents('php://input');
         $checkout = json_decode($requestBody, true);
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Checkout ' . json_encode($checkout));
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook payload ' . wc_print_r($checkout, true));
+        }
 
         $referenceNumber = $checkout['requestReferenceNumber'];
 
@@ -699,8 +716,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
         $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'metadata ' . json_encode($authorizationTypeMetadata));
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Authorization metadata ' . wc_print_r($authorizationTypeMetadata, true));
+        }
 
         $totalAmountData = $checkout['totalAmount'];
         $amountPaid = floatval($totalAmountData['value']);
@@ -722,8 +740,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
             $payments = $this->client->getPaymentViaRrn($referenceNumber);
 
-            /** Enable for debugging purposes */
-            // wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
+            if ($this->debug_mode) {
+                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Payments via RRN ' . wc_print_r($payments, true));
+            }
 
             if (array_key_exists("error", $payments)) {
                 wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] ' . $payments['error']);
@@ -762,12 +781,13 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             $order->payment_complete($transactionRefNumber);
         }
 
-        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook processing for checkout ID ' . $checkout['id']);
+        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook processing for checkout ID ' . $checkout['id'] . ' is complete');
     }
 
     function wc_order_item_add_action_buttons_callback($order) {
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', $order->get_id() . ' ' . $order->get_total_refunded());
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK . '] Total refunded for order ID ' . $order->get_id() . ': ' . $order->get_total_refunded());
+        }
         $orderId = $order->get_id();
         $payments = $this->client->getPaymentViaRrn($orderId);
 
@@ -776,8 +796,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             return;
         }
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Payments ' . json_encode($payments));
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK . '] Payments via RRN ' . wc_print_r($payments, true));
+        }
     
         $successfulPayments = array_values(
             array_filter(
@@ -794,9 +815,10 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         if (count($successfulPayments) !== 0) {
             $successfulPayment = $successfulPayments[0];
         
-            /** Enable for debugging purposes */
-            // wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canRefund: ' . ($successfulPayment['canRefund'] == true ? 'true' : 'false'));
-            // wc_get_logger()->log('info', 'Payment ID ' . $successfulPayment['id'] . ' canVoid: ' . ($successfulPayment['canVoid'] == true ? 'true' : 'false'));
+            if ($this->debug_mode) {
+                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK . '] Payment ID ' . $successfulPayment['id'] . ' canRefund: ' . ($successfulPayment['canRefund'] == true ? 'true' : 'false'));
+                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK . '] Payment ID ' . $successfulPayment['id'] . ' canVoid: ' . ($successfulPayment['canVoid'] == true ? 'true' : 'false'));
+            }
         
             if ($successfulPayment['canVoid']) {
                 echo '<span style="color: blue; text-decoration: underline;" class="tips" data-tip="Refunding the full amount for this order voids the payments for this transaction">Voidable</span>';
@@ -805,8 +827,9 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $orderMetadata = $order->get_meta_data();
 
-        /** Enable for debugging purposes */
-        // wc_get_logger()->log('info', 'Metadata ' . json_encode($orderMetadata));
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK . '] Authorization metadata ' . wc_print_r($orderMetadata, true));
+        }
 
         $authorizationTypeMetadataIndex = array_search($this->id . '_authorization_type', array_column($orderMetadata, 'key'));
         $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
@@ -826,12 +849,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             )
         );
 
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK . '] Authorized payments ' . wc_print_r($authorizedPayments, true));
+        }
+
         if (count($authorizedPayments) !== 0) {
-            // $authorizedPayment = $authorizedPayments[0];
-        
-            /** Enable for debugging purposes */
-            // wc_get_logger()->log('info', 'Payment ID ' . $authorizedPayment['id']);
-        
             echo '<button type="button" class="button capture-items">Capture</button>';
         }
     }

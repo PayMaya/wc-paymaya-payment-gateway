@@ -16,6 +16,7 @@ function cynder_paymaya_scripts($hook) {
     $paymayaGateway = $paymentGateways->payment_gateways()[$paymentGatewaId];
 
     $paymentGatewayEnabled = $paymayaGateway->get_option('enabled');
+    $debugMode = $paymayaGateway->get_option('debug_mode');
 
     /** If gateway isn't enabled, don't load JS scripts */
     if ($paymentGatewayEnabled !== 'yes') return;
@@ -41,6 +42,10 @@ function cynder_paymaya_scripts($hook) {
     $client = new Cynder_PaymayaClient($isSandbox === 'yes', $publicKey, $secretKey);
 
     $payments = $client->getPaymentViaRrn($orderId);
+
+    if ($debugMode === 'yes') {
+        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK . '] Payments via RRN ' . wc_print_r($payments, true));
+    }
 
     if (array_key_exists('error', $payments)) {
         wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK . '][' . CYNDER_PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
@@ -124,6 +129,7 @@ function cynder_paymaya_capture_payment() {
     $paymayaGateway = $paymentGateways->payment_gateways()[$paymentGatewaId];
 
     $paymentGatewayEnabled = $paymayaGateway->get_option('enabled');
+    $debugMode = $paymayaGateway->get_option('debug_mode');
 
     if ($paymentGatewayEnabled !== 'yes') {
         return wp_send_json(
@@ -159,8 +165,9 @@ function cynder_paymaya_capture_payment() {
         })
     );
 
-    /** Enable for debugging purposes */
-    // wc_get_logger()->log('info', 'Authorized Payments ' . json_encode($authorizedPayments));
+    if ($debugMode === 'yes') {
+        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Authorized Payments ' . wc_print_r($authorizedPayments, true));
+    }
 
     if (count($authorizedPayments) === 0) {
         return wp_send_json(
@@ -185,8 +192,9 @@ function cynder_paymaya_capture_payment() {
 
     $response = $client->capturePayment($authorizedPayment['id'], $payload);
 
-    /** Enable for debugging purposes */
-    // wc_get_logger()->log('info', 'Response ' . json_encode($response));
+    if ($debugMode === 'yes') {
+        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Capture payment response ' . wc_print_r($response, true));
+    }
 
     if (array_key_exists("error", $response)) {
         wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_EVENT . '] ' . $response['error']);
@@ -206,8 +214,15 @@ add_action(
 );
 
 function cynder_paymaya_catch_redirect() {
-    /** Enable for debugging purposes */
-    // wc_get_logger()->log('info', 'Params ' . json_encode($_GET));
+    $paymentGatewaId = 'paymaya';
+    $paymentGateways = WC_Payment_Gateways::instance();
+
+    $paymayaGateway = $paymentGateways->payment_gateways()[$paymentGatewaId];
+    $debugMode = $paymayaGateway->get_option('debug_mode');
+
+    if ($debugMode === 'yes') {
+        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_CATCH_REDIRECT_BLOCK . '] Redirect Params ' . wc_print_r($_GET, true));
+    }
 
     $orderId = sanitize_key($_GET['order']);
 
