@@ -251,7 +251,13 @@ add_action(
 );
 
 function cynder_paymaya_require_shipping_address2_checkout_field($fields) {
-    $fields['billing']['billing_address_2']['required'] = true;
+    $paymentGatewaId = 'paymaya';
+    $paymentGateways = WC_Payment_Gateways::instance();
+
+    $paymayaGateway = $paymentGateways->payment_gateways()[$paymentGatewaId];
+    $requireLine2 = $paymayaGateway->get_option('require_billing_address_2');
+
+    $fields['billing']['billing_address_2']['required'] = $requireLine2 === 'yes';
     return $fields;
 }
 

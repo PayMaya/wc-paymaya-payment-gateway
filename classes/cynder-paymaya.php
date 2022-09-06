@@ -208,6 +208,12 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'description' => 'Enables debug mode. Produces more verbose logs for most of the plugin processes. Helpful when coordinating with customer support.',
                 'default' => 'no',
             ),
+            'require_billing_address_2' => array(
+                'title' => 'Require Billing Address Line 2',
+                'type' => 'checkbox',
+                'description' => 'On certain cases, Maya may engage additional security checks using certain data. Enable this should they need your customers to fill out address line 2 during checkout.',
+                'default' => 'no',
+            ),
         );
     }
 
