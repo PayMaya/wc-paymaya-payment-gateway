@@ -52,7 +52,7 @@ Automatic updates should work like a charm; as always though, ensure you backup 
 == Changelog ==
 
 = 1.0.8 =
-*Release Date - September 9, 2022*
+*Release Date - September 15, 2022*
 
 * Add debug mode for better logging
 * Add optional address line 2 setting
