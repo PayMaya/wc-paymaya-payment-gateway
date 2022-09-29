@@ -712,8 +712,23 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $checkoutStatus = $checkout['status'];
         $paymentStatus = $checkout['paymentStatus'];
 
-        if ($checkoutStatus !== 'COMPLETED' || $paymentStatus !== 'PAYMENT_SUCCESS') {
+        if ($checkoutStatus !== 'COMPLETED') {
             wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Failed to complete order because checkout is ' . $checkoutStatus . ' and  payment is ' . $paymentStatus);
+
+            status_header(200);
+            die();
+
+            return;
+        }
+
+        if ($paymentStatus === 'PAYMENT_FAILED') {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Payment failed for order ' . $referenceNumber);
+
+            $order->update_status('failed', 'Payment failed');
+
+            status_header(200);
+            die();
+
             return;
         }
 
