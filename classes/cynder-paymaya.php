@@ -23,6 +23,7 @@ define('CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK', 'Process Payment');
 define('CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK', 'Process Refund');
 define('CYNDER_PAYMAYA_MASS_REFUND_PAYMENT_BLOCK', 'Mass Refund');
 define('CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK', 'Handle Webhook Request');
+define('CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK', 'Handle Payment Webhook Request');
 define('CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK', 'Add Action Buttons');
 define('CYNDER_PAYMAYA_AFTER_TOTALS_BLOCK', 'After Order Totals');
 define('CYNDER_PAYMAYA_CREATE_CHECKOUT_EVENT', 'createCheckout');
@@ -849,7 +850,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $payment = json_decode($requestBody, true);
 
         if ($this->debug_mode) {
-            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook payload ' . wc_print_r($payment, true));
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Payment Webhook payload ' . wc_print_r($payment, true));
         }
 
         /** TO-DO: Do something with payment */
