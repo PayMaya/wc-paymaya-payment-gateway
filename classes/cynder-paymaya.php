@@ -106,6 +106,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         );
 
         add_action(
+            'woocommerce_api_cynder_' . $this->id . '_payment',
+            array($this, 'handle_payment_webhook_request')
+        );
+
+        add_action(
             'woocommerce_order_item_add_action_buttons',
             array($this, 'wc_order_item_add_action_buttons_callback'),
             10,
@@ -193,14 +198,19 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'description' => 'The following fields are used by Maya to properly process order statuses after payments.<br/><strong>DON\'T CHANGE THIS UNLESS YOU KNOW WHAT YOU\'RE DOING</strong>.<br/>For more information, refer <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Webhooks">here</a>.'
             ),
             'webhook_success' => array(
-                'title' => 'Webhook Success URL',
+                'title' => 'Webhook Checkout Success URL',
                 'type' => 'text',
                 'default' => get_home_url() . '?wc-api=cynder_paymaya'
             ),
             'webhook_failure' => array(
-                'title' => 'Webhook Failure URL',
+                'title' => 'Webhook Checkout Failure URL',
                 'type' => 'text',
                 'default' => get_home_url() . '?wc-api=cynder_paymaya'
+            ),
+            'webhook_payment_status' => array(
+                'title' => 'Webhook Payment Status URL',
+                'type' => 'text',
+                'default' => get_home_url() . '?wc-api=cynder_paymaya_payment'
             ),
             'debug_mode' => array(
                 'title' => 'Debug Mode',
@@ -222,6 +232,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $webhookSuccessUrl = $this->get_option('webhook_success');
         $webhookFailureUrl = $this->get_option('webhook_failure');
+        $webhookPaymentUrl = $this->get_option('webhook_payment_status');
 
         if (isset($this->enabled) && $this->enabled === 'yes' && isset($this->public_key) && isset($this->secret_key)) {
             $webhooks = $this->client->retrieveWebhooks();
@@ -249,6 +260,24 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             }
 
             $createdWebhook = $this->client->createWebhook('CHECKOUT_FAILURE',$webhookFailureUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $createdWebhook = $this->client->createWebhook('PAYMENT_SUCCESS', $webhookPaymentUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $createdWebhook = $this->client->createWebhook('PAYMENT_FAILED', $webhookPaymentUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $createdWebhook = $this->client->createWebhook('PAYMENT_EXPIRED', $webhookPaymentUrl);
 
             if (array_key_exists("error", $createdWebhook)) {
                 $this->add_error($createdWebhook["error"]);
@@ -803,6 +832,30 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         }
 
         wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook processing for checkout ID ' . $checkout['id'] . ' is complete');
+    }
+
+    function handle_payment_webhook_request() {
+        $isPostRequest = $_SERVER['REQUEST_METHOD'] === 'POST';
+        $wcApiQuery = sanitize_text_field($_GET['wc-api']);
+        $hasWcApiQuery = isset($wcApiQuery);
+        $hasCorrectQuery = $wcApiQuery === 'cynder_paymaya_payment';
+
+        if (!$isPostRequest || !$hasWcApiQuery || !$hasCorrectQuery) {
+            status_header(400);
+            die();
+        }
+
+        $requestBody = file_get_contents('php://input');
+        $payment = json_decode($requestBody, true);
+
+        if ($this->debug_mode) {
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook payload ' . wc_print_r($payment, true));
+        }
+
+        /** TO-DO: Do something with payment */
+
+        status_header(200);
+        die();
     }
 
     function wc_order_item_add_action_buttons_callback($order) {
