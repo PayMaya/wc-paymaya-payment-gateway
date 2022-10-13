@@ -102,7 +102,9 @@ jQuery(document).ready(function ($) {
                         window.location.reload();
                     }
                 })
-                .fail((jqXhr, textStatus, err) => console.log(err))
+                .fail((jqXhr, textStatus, err) => {
+                    alert(jqXhr.responseJSON['error'] || 'Something went wrong');
+                })
                 .always(() => {
                     capturePanel.unblock();
                 });

@@ -1,11 +1,15 @@
 <?php
 
+$fileDir = dirname(__FILE__);
+include_once $fileDir.'/classes/paymaya-client.php';
+
 /** Logger indicators */
 define('CYNDER_PAYMAYA_LOADING_ADMIN_JS_SCRIPTS_BLOCK', 'Loading Admin JS Scripts');
 define('CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK', 'Capture Payment');
 define('CYNDER_PAYMAYA_CATCH_REDIRECT_BLOCK', 'Paymaya Catch Redirect');
 define('CYNDER_PAYMAYA_GET_PAYMENTS_EVENT', 'getPaymentViaRrn');
 define('CYNDER_PAYMAYA_CAPTURE_PAYMENT_EVENT', 'capturePayment');
+define('CYNDER_PAYMAYA_UPDATE_EVENT', 'Update Maya Plugin');
 
 function cynder_paymaya_scripts($hook) {
     if ($hook !== 'post.php') return;
@@ -147,7 +151,7 @@ function cynder_paymaya_capture_payment() {
     $payments = $client->getPaymentViaRrn($orderId);
 
     if (array_key_exists('error', $payments)) {
-        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_GET_PAYMENTS_EVENT . '] ' . $payments['error']);
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_GET_PAYMENTS_EVENT . '] ' . wc_print_r($payments['error'], true));
         return wp_send_json(
             array('error' => 'An error occured. If issue persists, contact Paymaya support.'),
             400
@@ -197,10 +201,16 @@ function cynder_paymaya_capture_payment() {
     }
 
     if (array_key_exists("error", $response)) {
-        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_EVENT . '] ' . $response['error']);
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '][' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_EVENT . '] ' . wc_print_r($response['error'], true));
+
+        $message = 'An error occured. If issue persists, contact Maya support.';
+
+        if (array_key_exists('message', $response['error'])) {
+            $message = $response['error']['message'];
+        }
 
         return wp_send_json(
-            array('error' => 'An error occured. If issue persists, contact Maya support.'),
+            array('error' => $message),
             400
         );
     }
@@ -262,3 +272,53 @@ function cynder_paymaya_require_shipping_address2_checkout_field($fields) {
 }
 
 add_filter('woocommerce_checkout_fields', 'cynder_paymaya_require_shipping_address2_checkout_field');
+
+function update_paymaya_plugin() {
+    $mainPluginSettings = get_option('woocommerce_paymaya_settings');
+
+    $client = new Cynder_PaymayaClient(
+        $mainPluginSettings['sandbox'] === 'yes',
+        $mainPluginSettings['public_key'],
+        $mainPluginSettings['secret_key'],
+    );
+
+    $webhooks = $client->retrieveWebhooks();
+
+    if ($mainPluginSettings['debug_mode'] === 'yes') {
+        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_UPDATE_EVENT . '] ' . wc_print_r($webhooks, true));
+    }
+
+    if (array_key_exists("error", $webhooks)) {
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_UPDATE_EVENT . '] Error retrieving webhooks ' . wc_print_r($webhooks['error'], true));
+    }
+
+    foreach($webhooks as $webhook) {
+        $deletedWebhook = $client->deleteWebhook($webhook["id"]);
+
+        if (array_key_exists("error", $deletedWebhook)) {
+            wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_UPDATE_EVENT . '] Error deleting webhooks ' . wc_print_r($deletedWebhook['error'], true));
+        }
+    }
+
+    $webhookUrl = isset($mainPluginSettings['webhook_payment_status']) ? $mainPluginSettings['webhook_payment_status'] : get_home_url() . '?wc-api=cynder_paymaya_payment';
+
+    $createdWebhook = $client->createWebhook('PAYMENT_SUCCESS', $webhookUrl);
+
+    if (array_key_exists("error", $createdWebhook)) {
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_UPDATE_EVENT . '] Error creating webhooks ' . wc_print_r($createdWebhook['error'], true));
+    }
+
+    $createdWebhook = $client->createWebhook('PAYMENT_FAILED', $webhookUrl);
+
+    if (array_key_exists("error", $createdWebhook)) {
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_UPDATE_EVENT . '] Error creating webhooks ' . wc_print_r($createdWebhook['error'], true));
+    }
+
+    $createdWebhook = $client->createWebhook('PAYMENT_EXPIRED', $webhookUrl);
+
+    if (array_key_exists("error", $createdWebhook)) {
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_UPDATE_EVENT . '] Error creating webhooks ' . wc_print_r($createdWebhook['error'], true));
+    }
+}
+
+add_action('woocommerce_paymaya_updated', 'update_paymaya_plugin');
