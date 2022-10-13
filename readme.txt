@@ -3,7 +3,7 @@ Tags: payments, credit card
 Requires at least: 5.0
 Tested up to: 5.9
 Requires PHP: 5.6
-Stable tag: 1.0.9
+Stable tag: 1.1.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -50,6 +50,14 @@ To test payments, enable **Sandbox Mode**. This will let you transact test payme
 Automatic updates should work like a charm; as always though, ensure you backup your site just in case.
 
 == Changelog ==
+
+= 1.1.0 =
+*Release Date - October 13, 2022*
+
+* Refactor webhooks to listen for payment events instead of checkout
+* Fix error handling for invalid payments in manual captures
+* Updated production base URL for Maya API
+* Tested compatibility for WC 7.0.0
 
 = 1.0.9 =
 *Release Date - October 3, 2022*
