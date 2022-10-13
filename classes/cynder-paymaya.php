@@ -23,6 +23,7 @@ define('CYNDER_PAYMAYA_PROCESS_PAYMENT_BLOCK', 'Process Payment');
 define('CYNDER_PAYMAYA_PROCESS_REFUND_BLOCK', 'Process Refund');
 define('CYNDER_PAYMAYA_MASS_REFUND_PAYMENT_BLOCK', 'Mass Refund');
 define('CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK', 'Handle Webhook Request');
+define('CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK', 'Handle Payment Webhook Request');
 define('CYNDER_PAYMAYA_ADD_ACTION_BUTTONS_BLOCK', 'Add Action Buttons');
 define('CYNDER_PAYMAYA_AFTER_TOTALS_BLOCK', 'After Order Totals');
 define('CYNDER_PAYMAYA_CREATE_CHECKOUT_EVENT', 'createCheckout');
@@ -103,6 +104,11 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         add_action(
             'woocommerce_api_cynder_' . $this->id,
             array($this, 'handle_webhook_request')
+        );
+
+        add_action(
+            'woocommerce_api_cynder_' . $this->id . '_payment',
+            array($this, 'handle_payment_webhook_request')
         );
 
         add_action(
@@ -193,14 +199,19 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 'description' => 'The following fields are used by Maya to properly process order statuses after payments.<br/><strong>DON\'T CHANGE THIS UNLESS YOU KNOW WHAT YOU\'RE DOING</strong>.<br/>For more information, refer <a target="_blank" href="https://hackmd.io/@paymaya-pg/Checkout#Webhooks">here</a>.'
             ),
             'webhook_success' => array(
-                'title' => 'Webhook Success URL',
+                'title' => 'Webhook Checkout Success URL',
                 'type' => 'text',
                 'default' => get_home_url() . '?wc-api=cynder_paymaya'
             ),
             'webhook_failure' => array(
-                'title' => 'Webhook Failure URL',
+                'title' => 'Webhook Checkout Failure URL',
                 'type' => 'text',
                 'default' => get_home_url() . '?wc-api=cynder_paymaya'
+            ),
+            'webhook_payment_status' => array(
+                'title' => 'Webhook Payment Status URL',
+                'type' => 'text',
+                'default' => get_home_url() . '?wc-api=cynder_paymaya_payment'
             ),
             'debug_mode' => array(
                 'title' => 'Debug Mode',
@@ -222,6 +233,7 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         $webhookSuccessUrl = $this->get_option('webhook_success');
         $webhookFailureUrl = $this->get_option('webhook_failure');
+        $webhookPaymentUrl = $this->get_option('webhook_payment_status');
 
         if (isset($this->enabled) && $this->enabled === 'yes' && isset($this->public_key) && isset($this->secret_key)) {
             $webhooks = $this->client->retrieveWebhooks();
@@ -249,6 +261,24 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             }
 
             $createdWebhook = $this->client->createWebhook('CHECKOUT_FAILURE',$webhookFailureUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $createdWebhook = $this->client->createWebhook('PAYMENT_SUCCESS', $webhookPaymentUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $createdWebhook = $this->client->createWebhook('PAYMENT_FAILED', $webhookPaymentUrl);
+
+            if (array_key_exists("error", $createdWebhook)) {
+                $this->add_error($createdWebhook["error"]);
+            }
+
+            $createdWebhook = $this->client->createWebhook('PAYMENT_EXPIRED', $webhookPaymentUrl);
 
             if (array_key_exists("error", $createdWebhook)) {
                 $this->add_error($createdWebhook["error"]);
@@ -681,10 +711,16 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
     }
 
     public function handle_webhook_request() {
+        /** Passthrough */
+        status_header(200);
+        die();
+    }
+
+    function handle_payment_webhook_request() {
         $isPostRequest = $_SERVER['REQUEST_METHOD'] === 'POST';
         $wcApiQuery = sanitize_text_field($_GET['wc-api']);
         $hasWcApiQuery = isset($wcApiQuery);
-        $hasCorrectQuery = $wcApiQuery === 'cynder_paymaya';
+        $hasCorrectQuery = $wcApiQuery === 'cynder_paymaya_payment';
 
         if (!$isPostRequest || !$hasWcApiQuery || !$hasCorrectQuery) {
             status_header(400);
@@ -692,44 +728,21 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         }
 
         $requestBody = file_get_contents('php://input');
-        $checkout = json_decode($requestBody, true);
+        $payment = json_decode($requestBody, true);
 
         if ($this->debug_mode) {
-            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook payload ' . wc_print_r($checkout, true));
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Payment Webhook payload ' . wc_print_r($payment, true));
         }
 
-        $referenceNumber = $checkout['requestReferenceNumber'];
+        $referenceNumber = $payment['requestReferenceNumber'];
 
         $order = wc_get_order($referenceNumber);
 
         if (empty($order)) {
-            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] No transaction found with reference number '. $referenceNumber);
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] No transaction found with reference number '. $referenceNumber);
 
             status_header(204);
             die();
-        }
-
-        $checkoutStatus = $checkout['status'];
-        $paymentStatus = $checkout['paymentStatus'];
-
-        if ($checkoutStatus !== 'COMPLETED') {
-            wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Failed to complete order because checkout is ' . $checkoutStatus . ' and  payment is ' . $paymentStatus);
-
-            status_header(200);
-            die();
-
-            return;
-        }
-
-        if ($paymentStatus === 'PAYMENT_FAILED') {
-            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Payment failed for order ' . $referenceNumber);
-
-            $order->update_status('failed', 'Payment failed');
-
-            status_header(200);
-            die();
-
-            return;
         }
 
         $orderMetadata = $order->get_meta_data();
@@ -738,44 +751,58 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
         $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
 
         if ($this->debug_mode) {
-            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Authorization metadata ' . wc_print_r($authorizationTypeMetadata, true));
+            wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Authorization metadata ' . wc_print_r($authorizationTypeMetadata, true));
         }
 
-        $totalAmountData = $checkout['totalAmount'];
-        $amountPaid = floatval($totalAmountData['value']);
-
-        /** Get txn ref number */
-        $transactionRefNumber = $checkout['transactionReferenceNumber'];
+        $transactionRefNumber = $payment['id'];
+        $status = $payment['status'];
+        $amountPaid = $payment['amount'];
 
         if ($authorizationTypeMetadata->value === 'none') {
             /** For non-manual capture payments: */
 
             /** With correct data based on assumptions */
-            if (abs($amountPaid-floatval($order->get_total())) < PHP_FLOAT_EPSILON) {
+            if (abs($amountPaid-floatval($order->get_total())) < PHP_FLOAT_EPSILON && $status === 'PAYMENT_SUCCESS') {
                 $order->payment_complete($transactionRefNumber);
+            } else if ($status === 'PAYMENT_FAILED' || $status === 'PAYMENT_EXPIRED' || $status === 'AUTH_FAILED') {
+                $note = '';
+
+                switch ($status) {
+                    case 'PAYMENT_EXPIRED': {
+                        $note = 'Payment expired';
+                        break;
+                    }
+                    case 'AUTH_FAILED':
+                    case 'PAYMENT_FAILED':
+                    default: {
+                        $note = 'Payment failed';
+                    }
+                }
+
+                $order->update_status('failed', $note, true);
             } else {
-                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Amount mismatch. Open payment details on Maya dashboard with txn ref number ' . $transactionRefNumber);
+                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Amount mismatch. Open payment details on Maya dashboard with txn ref number ' . $transactionRefNumber);
             }
         } else {
-            /** For manual capture payments */
+            /** Process manual captures */
 
             $payments = $this->client->getPaymentViaRrn($referenceNumber);
 
             if ($this->debug_mode) {
-                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Payments via RRN ' . wc_print_r($payments, true));
+                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Payments via RRN ' . wc_print_r($payments, true));
             }
 
             if (array_key_exists("error", $payments)) {
-                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] ' . $payments['error']);
+                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] ' . $payments['error']);
                 return;
             }
 
             if (count($payments) === 0) {
-                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] No payments associated to order ID ' . $referenceNumber);
+                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] No payments associated to order ID ' . $referenceNumber);
                 return;
             }
 
-            $capturedPayments = array_values(
+            $authorizedPayments = array_values(
                 array_filter(
                     $payments,
                     function ($payment) {
@@ -785,24 +812,48 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 )
             );
 
-            if (count($capturedPayments) === 0) {
-                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] No captured payments associated to order ID ' . $referenceNumber);
+            if (count($authorizedPayments) === 0) {
+                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] No captured payments associated to order ID ' . $referenceNumber);
                 return;
             }
 
-            if (count($capturedPayments) > 2) {
-                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Multiple captured payments associated to order ID ' . $referenceNumber);
+            if (count($authorizedPayments) > 2) {
+                wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Multiple captured payments associated to order ID ' . $referenceNumber);
                 return;
             }
 
-            $capturedPayment = $capturedPayments[0];
+            $authorizedPayment = $authorizedPayments[0];
 
-            if ($capturedPayment['amount'] !== $capturedPayment['capturedAmount']) return;
+            if ($authorizedPayment['amount'] === $authorizedPayment['capturedAmount']) {
+                if ($order->is_paid()) {
+                    $order->update_status('processing');
+                } else {
+                    $order->payment_complete($authorizedPayment['id']);
+                }
+            } else {
+                $note = '';
 
-            $order->payment_complete($transactionRefNumber);
+                switch ($status) {
+                    case 'PAYMENT_SUCCESS': {
+                        $note = 'Successful payment ' . $payment['id'];
+                        break;
+                    }
+                    case 'PAYMENT_EXPIRED':
+                    case 'AUTH_FAILED':
+                    case 'PAYMENT_FAILED': {
+                        $note = 'Failed payment ' . $payment['id'];
+                        $order->update_status('on-hold');
+                        break;
+                    }
+                }
+
+                if (!empty($note)) {
+                    $order->add_order_note($note);
+                }
+            }
         }
 
-        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_WEBHOOK_REQUEST_BLOCK . '] Webhook processing for checkout ID ' . $checkout['id'] . ' is complete');
+        wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Webhook processing done for payment ' . $payment['id']);
     }
 
     function wc_order_item_add_action_buttons_callback($order) {
