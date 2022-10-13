@@ -5,11 +5,11 @@
  * Description: Take credit and debit card payments via Maya.
  * Author: PayMaya
  * Author URI: https://www.paymaya.com
- * Version: 1.0.9
+ * Version: 1.1.0
  * Requires at least: 5.3.2
  * Tested up to: 6.0.2
  * WC requires at least: 3.9.3
- * WC tested up to: 6.9.4
+ * WC tested up to: 7.0.0
  *
  * @category Plugin
  * @package  CynderTech
@@ -53,7 +53,7 @@ function Paymaya_Init_Gateway_class()
     }
 
     define('CYNDER_PAYMAYA_MAIN_FILE', __FILE__);
-    define('CYNDER_PAYMAYA_VERSION', '1.0.9');
+    define('CYNDER_PAYMAYA_VERSION', '1.1.0');
     define('CYNDER_PAYMAYA_BASE_SANDBOX_URL',  'https://pg-sandbox.paymaya.com');
     define('CYNDER_PAYMAYA_BASE_PRODUCTION_URL',  'https://pg.maya.ph');
     define(
