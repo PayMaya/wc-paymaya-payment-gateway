@@ -29,6 +29,13 @@ define('CYNDER_PAYMAYA_AFTER_TOTALS_BLOCK', 'After Order Totals');
 define('CYNDER_PAYMAYA_CREATE_CHECKOUT_EVENT', 'createCheckout');
 define('CYNDER_PAYMAYA_VOID_PAYMENT_EVENT', 'voidPayment');
 define('CYNDER_PAYMAYA_REFUND_PAYMENT_EVENT', 'refundPayment');
+define('CYNDER_PAYMAYA_OVERRIDABLE_WEBHOOKS', array(
+    'CHECKOUT_SUCCESS',
+    'CHECKOUT_FAILURE',
+    'PAYMENT_SUCCESS',
+    'PAYMENT_FAILED',
+    'PAYMENT_EXPIRED',
+));
 
 /**
  * Paymaya Class
@@ -246,11 +253,21 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
                 $this->add_error($webhooks["error"]);
             }
 
-            foreach($webhooks as $webhook) {
-                $deletedWebhook = $this->client->deleteWebhook($webhook["id"]);
+            wc_get_logger()->log('info', 'valid webhooks' . wc_print_r(CYNDER_PAYMAYA_OVERRIDABLE_WEBHOOKS, true));
 
-                if (array_key_exists("error", $deletedWebhook)) {
-                    $this->add_error($deletedWebhook["error"]);
+            foreach($webhooks as $webhook) {
+                /**
+                 * Only override webhook names that are being used by the plugin, disregard the rest
+                 */
+
+                wc_get_logger()->log('info', 'Webhook name ' . $webhook['name']);
+
+                if (in_array($webhook['name'], CYNDER_PAYMAYA_OVERRIDABLE_WEBHOOKS)) {
+                    $deletedWebhook = $this->client->deleteWebhook($webhook["id"]);
+
+                    if (array_key_exists("error", $deletedWebhook)) {
+                        $this->add_error($deletedWebhook["error"]);
+                    }
                 }
             }
 
