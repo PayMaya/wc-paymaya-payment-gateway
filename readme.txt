@@ -3,7 +3,7 @@ Tags: payments, credit card
 Requires at least: 5.0
 Tested up to: 5.9
 Requires PHP: 5.6
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -50,6 +50,12 @@ To test payments, enable **Sandbox Mode**. This will let you transact test payme
 Automatic updates should work like a charm; as always though, ensure you backup your site just in case.
 
 == Changelog ==
+
+= 1.1.1 =
+*Release Date - January 9, 2022*
+
+* Fix saving settings overriding webhooks not being used by the plugin
+* Tested compatibility for WC 7.2.2
 
 = 1.1.0 =
 *Release Date - October 13, 2022*
