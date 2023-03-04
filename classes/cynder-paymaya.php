@@ -434,7 +434,13 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
             return null;
         }
 
-        $order->add_meta_data($this->id . '_checkout_id', $response['checkoutId']);
+        $existingCheckout = $order->get_meta($this->id . '_checkout_id');
+
+        if (isset($existingCheckout) && $existingCheckout !== '') {
+            $order->add_meta_data($this->id . '_checkout_id_old', $existingCheckout);
+        }
+        
+        $order->update_meta_data($this->id . '_checkout_id', $response['checkoutId']);
         $order->add_meta_data($this->id . '_authorization_type', $this->manual_capture);
         $order->save_meta_data();
 
@@ -777,6 +783,13 @@ class Cynder_Paymaya_Gateway extends WC_Payment_Gateway
 
         if ($authorizationTypeMetadata->value === 'none') {
             /** For non-manual capture payments: */
+
+            if ($order->is_paid()) {
+                wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_HANDLE_PAYMENT_WEBHOOK_REQUEST_BLOCK . '] Order ' . $referenceNumber . ' is already paid. Cannot process payment ' . $transactionRefNumber . ' with ' . $status . ' status.');
+
+                status_header(204);
+                die();
+            }
 
             /** With correct data based on assumptions */
             if (abs($amountPaid-floatval($order->get_total())) < PHP_FLOAT_EPSILON && $status === 'PAYMENT_SUCCESS') {
