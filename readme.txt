@@ -51,8 +51,13 @@ Automatic updates should work like a charm; as always though, ensure you backup 
 
 == Changelog ==
 
+= 1.1.2 =
+*Release Date - March 8, 2023*
+* Fix multiple webhook processing for a single order
+* Tested compatibility for WP 6.1 and WC 7.3
+
 = 1.1.1 =
-*Release Date - January 9, 2022*
+*Release Date - January 9, 2023*
 
 * Fix saving settings overriding webhooks not being used by the plugin
 * Tested compatibility for WC 7.2.2
