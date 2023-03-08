@@ -1,9 +1,9 @@
 === Maya Business Plugin ===
 Tags: payments, credit card
 Requires at least: 5.0
-Tested up to: 5.9
+Tested up to: 6.1
 Requires PHP: 5.6
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -51,8 +51,13 @@ Automatic updates should work like a charm; as always though, ensure you backup 
 
 == Changelog ==
 
+= 1.1.2 =
+*Release Date - March 8, 2023*
+* Fix multiple webhook processing for a single order
+* Tested compatibility for WP 6.1 and WC 7.3
+
 = 1.1.1 =
-*Release Date - January 9, 2022*
+*Release Date - January 9, 2023*
 
 * Fix saving settings overriding webhooks not being used by the plugin
 * Tested compatibility for WC 7.2.2
