@@ -7,9 +7,9 @@
  * Author URI: https://www.paymaya.com
  * Version: 1.1.2
  * Requires at least: 5.3.2
- * Tested up to: 6.1.1
+ * Tested up to: 6.3.0
  * WC requires at least: 3.9.3
- * WC tested up to: 7.3.0
+ * WC tested up to: 7.9.0
  *
  * @category Plugin
  * @package  CynderTech
