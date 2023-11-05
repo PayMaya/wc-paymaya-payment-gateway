@@ -118,7 +118,7 @@ function Paymaya_Init_Gateway_class()
              *
              * @return void
              */
-            private function __wakeup()
+            public function __wakeup()
             {
                 // empty
             }
