@@ -1,0 +1,11 @@
+.git
+.gitignore
+.vscode
+.phpunit.result.cache
+composer.json
+composer.lock
+phpunit.xml.dist
+svnignore.txt
+tests
+vendor
+.distignore

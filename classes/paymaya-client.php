@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Paymaya Client Class
  * 
@@ -9,6 +13,10 @@
  * WordPress' wp_remote functions
  */
 class Cynder_PaymayaClient {
+    public $isSandbox;
+    public $public_key;
+    public $secret_key;
+
     public function __construct($isSandbox, $publicKey, $secretKey) {
         $this->isSandbox = $isSandbox;
         $this->public_key = $publicKey;
@@ -86,7 +94,7 @@ class Cynder_PaymayaClient {
             'headers' => $this->getHeaders()
         );
 
-        $response = wp_remote_post($this->getBaseUrl() . '/checkout/v1/webhooks/' . $id, $requestArgs);
+        $response = wp_remote_request($this->getBaseUrl() . '/checkout/v1/webhooks/' . $id, $requestArgs);
 
         return $this->handleResponse($response);
     }
@@ -110,14 +118,26 @@ class Cynder_PaymayaClient {
     }
 
     /** https://hackmd.io/@paymaya-pg/Checkout#Get-Payments-via-RRN---GET-httpspg-sandboxpaymayacompaymentsv1payment-rrnsrrn */
-    public function getPaymentViaRrn($orderId) {
+    public function getPaymentViaRrn($orderId, $timeout = null) {
         $requestArgs = array(
             'headers' => $this->getHeaders()
         );
 
+        /** Webhook handlers pass a short timeout so a slow Maya API becomes a quick, retryable 503. */
+        if ($timeout !== null) {
+            $requestArgs['timeout'] = $timeout;
+        }
+
         $response = wp_remote_get($this->getBaseUrl() . '/payments/v1/payment-rrns/' . $orderId, $requestArgs);
 
         $decodedResponse = $this->handleResponse($response);
+
+        /** An empty or non-JSON body decodes to null (or a scalar); report it as an error instead of inspecting it as an array. */
+        if (!is_array($decodedResponse)) {
+            return array(
+                'error' => 'Unexpected or empty response when requesting payments via RRN.'
+            );
+        }
 
         if (array_key_exists('error', $decodedResponse) && is_array($decodedResponse['error'])) {
             if (array_key_exists('message', $decodedResponse['error'])) {

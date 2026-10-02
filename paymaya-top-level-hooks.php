@@ -1,6 +1,10 @@
 <?php
 
-$fileDir = dirname(__FILE__);
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+$fileDir = plugin_dir_path( __FILE__ );
 include_once $fileDir.'/classes/paymaya-client.php';
 
 /** Logger indicators */
@@ -12,7 +16,7 @@ define('CYNDER_PAYMAYA_CAPTURE_PAYMENT_EVENT', 'capturePayment');
 define('CYNDER_PAYMAYA_UPDATE_EVENT', 'Update Maya Plugin');
 
 function cynder_paymaya_scripts($hook) {
-    if ($hook !== 'post.php') return;
+    if ($hook !== 'post.php' && $hook !== 'woocommerce_page_wc-orders') return;
 
     $paymentGatewaId = 'paymaya';
     $paymentGateways = WC_Payment_Gateways::instance();
@@ -25,19 +29,16 @@ function cynder_paymaya_scripts($hook) {
     /** If gateway isn't enabled, don't load JS scripts */
     if ($paymentGatewayEnabled !== 'yes') return;
 
-    $orderId = sanitize_key($_GET['post']);
+    $orderId = isset($_GET['id']) ? absint($_GET['id']) : (isset($_GET['post']) ? absint($_GET['post']) : 0);
     $order = wc_get_order($orderId);
 
     if (empty($order)) return;
     if (!method_exists($order, 'get_meta_data')) return;
 
-    $orderMetadata = $order->get_meta_data();
-
-    $authorizationTypeMetadataIndex = array_search($paymentGatewaId . '_authorization_type', array_column($orderMetadata, 'key'));
-    $authorizationTypeMetadata = $orderMetadata[$authorizationTypeMetadataIndex];
+    $authorizationType = $order->get_meta($paymentGatewaId . '_authorization_type');
 
     /** If order isn't made with manual capture, don't load JS scripts */
-    if ($authorizationTypeMetadata->value === 'none') return;
+    if (empty($authorizationType) || $authorizationType === 'none') return;
 
     $isSandbox = $paymayaGateway->get_option('sandbox');
     $secretKey = $paymayaGateway->get_option('secret_key');
@@ -90,8 +91,9 @@ function cynder_paymaya_scripts($hook) {
 
     $jsVar = array(
         'order_id' => $orderId,
-        'amount_authorized' => intval($authorizedOrCapturedPayment['amount']),
-        'amount_captured' => intval($authorizedOrCapturedPayment['capturedAmount']),
+        'amount_authorized' => floatval($authorizedOrCapturedPayment['amount']),
+        'amount_captured' => floatval($authorizedOrCapturedPayment['capturedAmount']),
+        'nonce' => wp_create_nonce('cynder_paymaya_capture_nonce_' . $orderId),
     );
 
     wp_register_script(
@@ -110,19 +112,28 @@ add_action(
 );
 
 function cynder_paymaya_capture_payment() {
-    $captureAmount = sanitize_text_field($_POST['capture_amount']);
-    $orderId = sanitize_key($_POST['order_id']);
+    $orderId = isset($_POST['order_id']) ? sanitize_key($_POST['order_id']) : null;
 
-    if (!isset($captureAmount)) {
+    if (empty($orderId)) {
         return wp_send_json(
-            array('error' => '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Invalid capture amount'),
+            array('error' => '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Invalid order ID'),
             400
         );
     }
 
-    if (!isset($orderId)) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'cynder_paymaya_capture_nonce_' . $orderId)) {
+        return wp_send_json(array('error' => 'Invalid security token'), 403);
+    }
+
+    if (!current_user_can('edit_shop_orders')) {
+        return wp_send_json(array('error' => 'Permission denied'), 403);
+    }
+
+    $captureAmount = isset($_POST['capture_amount']) ? (float) sanitize_text_field($_POST['capture_amount']) : null;
+
+    if (empty($captureAmount) || $captureAmount <= 0) {
         return wp_send_json(
-            array('error' => '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Invalid order ID'),
+            array('error' => '[' . CYNDER_PAYMAYA_CAPTURE_PAYMENT_BLOCK . '] Invalid capture amount'),
             400
         );
     }
@@ -234,24 +245,45 @@ function cynder_paymaya_catch_redirect() {
         wc_get_logger()->log('info', '[' . CYNDER_PAYMAYA_CATCH_REDIRECT_BLOCK . '] Redirect Params ' . wc_print_r($_GET, true));
     }
 
-    $orderId = sanitize_key($_GET['order']);
+    $orderId = isset($_GET['order']) ? sanitize_key($_GET['order']) : null;
 
-    if (!isset($orderId)) {
+    if (empty($orderId)) {
         /** Check order ID */
         wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CATCH_REDIRECT_BLOCK . '] No order found with ID ' . $orderId);
         wc_add_notice('Something went wrong, please contact Maya support.', 'error');
-        wp_redirect(get_home_url());
+        wp_safe_redirect(home_url());
+        exit;
     }
 
     $order = wc_get_order($orderId);
 
-    $status = sanitize_text_field($_GET['status']);
+    if (!$order) {
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CATCH_REDIRECT_BLOCK . '] Invalid order ID ' . $orderId);
+        wc_add_notice('Something went wrong, please contact Maya support.', 'error');
+        wp_safe_redirect(home_url());
+        exit;
+    }
+
+    // Extract the request key and validate it against the actual order key
+    $requestKey = isset($_GET['key']) ? sanitize_text_field($_GET['key']) : '';
+    $actualKey = $order->get_order_key();
+
+    if (empty($requestKey) || !hash_equals($actualKey, $requestKey)) {
+        wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_CATCH_REDIRECT_BLOCK . '] Unauthorized redirect attempt for order ID ' . $orderId);
+        wc_add_notice('Invalid or unauthorized request.', 'error');
+        wp_safe_redirect(home_url());
+        exit;
+    }
+
+    $status = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
 
     if ($status === 'success') {
-        wp_redirect($order->get_checkout_order_received_url());
+        wp_safe_redirect($order->get_checkout_order_received_url());
+        exit;
     } else if ($status === 'failed') {
         wc_add_notice('Payment failed. Please try again or try another payment method.', 'error');
-        wp_redirect($order->get_checkout_payment_url());
+        wp_safe_redirect($order->get_checkout_payment_url());
+        exit;
     }
 }
 
@@ -274,12 +306,20 @@ function cynder_paymaya_require_shipping_address2_checkout_field($fields) {
 add_filter('woocommerce_checkout_fields', 'cynder_paymaya_require_shipping_address2_checkout_field');
 
 function update_paymaya_plugin() {
-    $mainPluginSettings = get_option('woocommerce_paymaya_settings');
+    $mainPluginSettings = get_option('woocommerce_paymaya_settings', array());
+
+    // Abort early if settings are uninitialized
+    if (empty($mainPluginSettings['public_key']) || empty($mainPluginSettings['secret_key'])) {
+        wc_get_logger()->log('info', '[Update Maya Plugin] Settings uninitialized. Skipping webhook update.');
+        return;
+    }
+
+    $isSandbox = isset($mainPluginSettings['sandbox']) && $mainPluginSettings['sandbox'] === 'yes';
 
     $client = new Cynder_PaymayaClient(
-        $mainPluginSettings['sandbox'] === 'yes',
+        $isSandbox,
         $mainPluginSettings['public_key'],
-        $mainPluginSettings['secret_key'],
+        $mainPluginSettings['secret_key']
     );
 
     $webhooks = $client->retrieveWebhooks();
@@ -290,6 +330,7 @@ function update_paymaya_plugin() {
 
     if (array_key_exists("error", $webhooks)) {
         wc_get_logger()->log('error', '[' . CYNDER_PAYMAYA_UPDATE_EVENT . '] Error retrieving webhooks ' . wc_print_r($webhooks['error'], true));
+        return;
     }
 
     foreach($webhooks as $webhook) {
@@ -300,7 +341,7 @@ function update_paymaya_plugin() {
         }
     }
 
-    $webhookUrl = isset($mainPluginSettings['webhook_payment_status']) ? $mainPluginSettings['webhook_payment_status'] : get_home_url() . '?wc-api=cynder_paymaya_payment';
+    $webhookUrl = isset($mainPluginSettings['webhook_payment_status']) ? $mainPluginSettings['webhook_payment_status'] : home_url( '/?wc-api=cynder_paymaya_payment' );
 
     $createdWebhook = $client->createWebhook('PAYMENT_SUCCESS', $webhookUrl);
 
@@ -322,3 +363,18 @@ function update_paymaya_plugin() {
 }
 
 add_action('woocommerce_paymaya_updated', 'update_paymaya_plugin');
+
+/** Registered once here rather than in the gateway constructor, which WooCommerce instantiates lazily. */
+add_action('admin_notices', function () {
+    if (class_exists('Cynder_Paymaya_Gateway')) {
+        Cynder_Paymaya_Gateway::webhook_source_rejected_notice();
+    }
+});
+
+add_action(Cynder_Paymaya_Gateway::RECONCILE_HOOK, function ($orderId, $attempt = 1) {
+    $gateways = WC_Payment_Gateways::instance()->payment_gateways();
+
+    if (isset($gateways[Cynder_Paymaya_Gateway::GATEWAY_ID])) {
+        $gateways[Cynder_Paymaya_Gateway::GATEWAY_ID]->reconcile_order($orderId, $attempt);
+    }
+}, 10, 2);

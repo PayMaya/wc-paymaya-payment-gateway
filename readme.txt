@@ -1,9 +1,9 @@
 === Maya Business Plugin ===
 Tags: payments, credit card
 Requires at least: 5.3
-Tested up to: 6.8.1
-Requires PHP: 5.6
-Stable tag: 1.2.0
+Tested up to: 7.1
+Requires PHP: 7.2.5
+Stable tag: 1.4.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -50,6 +50,35 @@ To test payments, enable **Sandbox Mode**. This will let you transact test payme
 Automatic updates should work like a charm; as always though, ensure you backup your site just in case.
 
 == Changelog ==
+
+= 1.4.1 =
+*Release Date - October 2, 2026*
+
+* **Behind a proxy or load balancer (not Cloudflare)?** Set *Trusted Proxy Header* and *Trusted Proxy IPs* in the Maya settings, or paid orders will stay "Pending payment".
+* Orders are now marked paid only after Maya confirms the payment.
+* Security improvements.
+* Tested with WordPress 7.1 and WooCommerce 11.0.1.
+
+= 1.3.4 =
+*Release Date - October 13, 2025*
+
+* Included additional logging statements for easier debugging
+
+= 1.3.3 =
+*Release Date - October 13, 2025*
+
+* Fix checking of webhook headers
+
+= 1.3.2 =
+*Release Date - September 12, 2025*
+
+* Fix issue with plugin headers
+
+= 1.3.1 =
+*Release Date - September 11, 2025*
+
+* Added fallback for web-hooks to support certain server configurations
+* Tested compatibility for WP 6.8.2 and WC 10.1.2
 
 = 1.3.0 =
 *Release Date - June 17, 2025*
@@ -153,3 +182,9 @@ Automatic updates should work like a charm; as always though, ensure you backup 
 *Release Date - 21 September 2020*
 
 * Initial release
+
+== Upgrade Notice ==
+
+= 1.4.1 =
+Behind a proxy or load balancer (not Cloudflare)? Set the new Trusted Proxy options in the Maya settings, or paid orders will stay pending.
+

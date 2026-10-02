@@ -6,11 +6,12 @@
  * Author: PayMaya
  * Author URI: https://www.paymaya.com
  * License: GPLv3
- * Version: 1.2.0
+ * Version: 1.4.1
  * Requires at least: 5.3
- * Tested up to: 6.8.1
+ * Tested up to: 7.1
+ * Requires PHP: 7.2.5
  * WC requires at least: 3.9.3
- * WC tested up to: 9.9.4
+ * WC tested up to: 11.0.1
  *
  * @category Plugin
  * @package  CynderTech
@@ -40,11 +41,11 @@ function Paymaya_Woocommerce_Missing_Cynder_notice()
     ) . '</strong></p></div>';
 }
 
-add_action( 'before_woocommerce_init', function() {
-	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
-		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
-	}
-} );
+add_action('before_woocommerce_init', function () {
+    if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
+    }
+});
 
 /**
  * Initialize Paymaya Gateway Class
@@ -59,9 +60,9 @@ function Paymaya_Init_Gateway_class()
     }
 
     define('CYNDER_PAYMAYA_MAIN_FILE', __FILE__);
-    define('CYNDER_PAYMAYA_VERSION', '1.2.0');
-    define('CYNDER_PAYMAYA_BASE_SANDBOX_URL',  'https://pg-sandbox.paymaya.com');
-    define('CYNDER_PAYMAYA_BASE_PRODUCTION_URL',  'https://pg.maya.ph');
+    define('CYNDER_PAYMAYA_VERSION', '1.4.1');
+    define('CYNDER_PAYMAYA_BASE_SANDBOX_URL', 'https://pg-sandbox.paymaya.com');
+    define('CYNDER_PAYMAYA_BASE_PRODUCTION_URL', 'https://pg.maya.ph');
     define(
         'CYNDER_PAYMAYA_PLUGIN_URL',
         untrailingslashit(
@@ -71,12 +72,12 @@ function Paymaya_Init_Gateway_class()
             )
         )
     );
-    
 
-    if (!class_exists('Cynder_Paymaya')) :
+
+    if (!class_exists('Cynder_Paymaya')):
         /**
          * Paymaya Class
-         * 
+         *
          * @category Class
          * @package  Paymaya
          * @author   Cyndertech <devops@cynder.io>
@@ -88,7 +89,7 @@ function Paymaya_Init_Gateway_class()
         {
             /**
              * *Singleton* instance of this class
-             * 
+             *
              * @var Singleton The reference the *Singleton* instance of this class
              */
             private static $_instance;
@@ -141,15 +142,15 @@ function Paymaya_Init_Gateway_class()
 
             /**
              * Initialize Paymaya plugin
-             * 
+             *
              * @return void
-             * 
+             *
              * @since 1.0.0
              */
             public function init()
             {
-                $fileDir = dirname(__FILE__);
-                include_once $fileDir.'/classes/cynder-paymaya.php';
+                $fileDir = plugin_dir_path(__FILE__);
+                include_once $fileDir . '/classes/cynder-paymaya.php';
                 include_once 'paymaya-top-level-hooks.php';
 
                 add_filter(
@@ -167,30 +168,30 @@ function Paymaya_Init_Gateway_class()
 
             /**
              * Registers Payment Gateways
-             * 
+             *
              * @param $methods array of methods
-             * 
+             *
              * @return array
-             * 
+             *
              * @since 1.0.0
              */
             public function addGateways($methods)
             {
                 $methods[] = 'Cynder_Paymaya_Gateway';
-                
+
                 return $methods;
             }
 
             /**
              * Registers Payment Gateways
-             * 
+             *
              * @param array $sections array of sections
-             * 
+             *
              * @return array
-             * 
+             *
              * @since 1.0.0
              */
-            public function filterGatewayOrderAdmin($sections) 
+            public function filterGatewayOrderAdmin($sections)
             {
                 unset($sections['paymaya']);
 
@@ -199,16 +200,14 @@ function Paymaya_Init_Gateway_class()
                     'wc-paymaya-payment-gateway'
                 );
 
-                $sections = [];
-
                 return $sections;
             }
 
             /**
              * Install/Update function
-             * 
+             *
              * @return void
-             * 
+             *
              * @since 1.0.0
              */
             public function install()
@@ -217,7 +216,8 @@ function Paymaya_Init_Gateway_class()
                     return;
                 }
 
-                if (!defined('IFRAME_REQUEST')
+                if (
+                    !defined('IFRAME_REQUEST')
                     && (CYNDER_PAYMAYA_VERSION !== get_option(
                         'cynder_paymaya_version'
                     ))
@@ -234,9 +234,9 @@ function Paymaya_Init_Gateway_class()
 
             /**
              * Updates Plugin Version
-             * 
+             *
              * @return void
-             * 
+             *
              * @since 1.0.0
              */
             public function updatePluginVersion()
@@ -246,7 +246,7 @@ function Paymaya_Init_Gateway_class()
             }
 
         }
-    
+
         Cynder_Paymaya::getInstance();
     endif;
 }

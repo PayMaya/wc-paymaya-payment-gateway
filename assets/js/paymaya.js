@@ -90,6 +90,7 @@ jQuery(document).ready(function ($) {
                     action: 'cynder_paymaya_capture_payment',
                     order_id: orderId,
                     capture_amount: Number(captureAmount),
+                    nonce: cynder_paymaya_order.nonce,
                 };
 
                 $.ajax({

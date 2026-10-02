@@ -1,3 +1,6 @@
 .vscode
 .svn
 svnignore.txt
+
+vendor/
+.phpunit.result.cache

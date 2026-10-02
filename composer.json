@@ -1,0 +1,12 @@
+{
+    "require-dev": {
+        "php-stubs/wordpress-stubs": "^7.0",
+        "php-stubs/woocommerce-stubs": "^11.0",
+        "phpunit/phpunit": "^8.5"
+    },
+    "config": {
+        "platform": {
+            "php": "7.2.5"
+        }
+    }
+}
